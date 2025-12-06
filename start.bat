@@ -43,35 +43,13 @@ echo.
 echo [1/2] Installing dependencies...
 %PYTHON_CMD% -m pip install -r requirements.txt -q
 if %errorlevel% neq 0 (
-    echo [ERROR] Failed to install dependencies.
+    echo [WARNING] Failed to install some dependencies.
     echo Trying with --user flag...
     %PYTHON_CMD% -m pip install -r requirements.txt -q --user
 )
 echo.
 
-:: Start app
+:: Start app using the launcher
 echo [2/2] Starting application...
 echo.
-echo ================================================
-echo   Open in browser: http://127.0.0.1:5000
-echo   Press Ctrl+C to stop the server
-echo ================================================
-echo.
-
-:: Start Python server in background, then open browser after delay
-start /b %PYTHON_CMD% app.py
-
-:: Wait for server to start
-echo Waiting for server to start...
-timeout /t 3 /nobreak >nul
-
-:: Open browser
-start http://127.0.0.1:5000
-
-:: Keep window open and show server output
-echo.
-echo Server is running. Press Ctrl+C to stop.
-echo.
-
-:: Wait indefinitely (keep the window open)
-cmd /k
+%PYTHON_CMD% launch.py
