@@ -1,94 +1,91 @@
-# 📚 Literature Screening Tool / 文献粗筛工具 v1.0
+# Literature Screening Tool
 
-A Python-based automated screening tool for **Meta-Analysis** and **Bibliometrics** research.
-Designed to streamline the process of filtering thousands of papers from **Web of Science** and **Scopus**.
+A Python-based tool for preliminary screening in systematic reviews, meta-analyses, and bibliometric studies. This tool facilitates the filtering of large literature datasets exported from Web of Science and Scopus.
 
-用于元分析/文献计量学研究的 Python 自动化粗筛工具。
+## Features
 
----
+- **Batch processing**: Supports multiple file uploads (.xlsx, .xls, .csv)
+- **Format standardization**: Automatically converts Web of Science export format to Scopus-compatible format for VOSviewer
+- **Keyword-based exclusion**: Filter records by title, abstract, or journal name
+- **LLM-assisted screening** (optional): Integration with DeepSeek API for natural language-based filtering criteria
+- **Structured output**:
+  - `cleaned_data.csv` — Retained records for downstream analysis
+  - `removed_data.csv` — Excluded records with documented exclusion reasons (for PRISMA reporting)
 
-## ✨ Features / 功能特点
+## Installation
 
-- ⚡ **Fast Processing**: Screen thousands of papers in seconds.
-- 🔄 **Auto-Standardization**: Automatically unifies WoS and Scopus data formats for VOSviewer compatibility.
-- 📂 **Multi-file Upload**: Batch upload multiple .xlsx, .xls, or .csv files.
-- 🎯 **Smart Filtering**:
-    - **Keyword Blacklist**: Exclude by Title, Abstract, or Journal Name.
-    - **🤖 AI Screening**: Optional DeepSeek-V3 integration for natural language filtering.
-- 🌗 **Dark/Light Mode**: Comfortable viewing in any environment.
-- 📊 **Dual Output**:
-    - `cleaned_data.csv`: For VOSviewer analysis.
-    - `removed_data.csv`: For PRISMA flow diagrams (with exclusion reasons).
+### Prerequisites
+- Python 3.8 or higher
+- pip package manager
 
----
+### Quick Start
 
-## 🚀 Quick Start / 快速开始
+**Windows:**
+1. Download and extract this repository
+2. Double-click `start.bat`
 
-### 一键启动 (推荐)
+**macOS / Linux:**
+```bash
+chmod +x start.sh && ./start.sh
+```
 
-**Windows 用户：**
-1. 点击绿色 **Code** → **Download ZIP** 下载并解压
-2. 双击 `start.bat`
-3. 浏览器自动打开工具 ✅
+### Manual Installation
 
-**Mac / Linux 用户：**
-1. 下载 ZIP 并解压
-2. 终端运行：
-   ```bash
-   chmod +x start.sh && ./start.sh
-   ```
-3. 打开浏览器访问 http://127.0.0.1:5000
+```bash
+# Clone the repository
+git clone https://github.com/Jake-yutong/Results-Sifting-Tool.git
+cd Results-Sifting-Tool
 
-### 手动运行
+# Install dependencies
+pip install -r requirements.txt
 
-1.  **Install Python**: Ensure Python 3.8+ is installed.
-2.  **Download Code**: Clone this repository or download the ZIP.
-3.  **Install Dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
-4.  **Run Application**:
-    ```bash
-    python app.py
-    ```
-5.  **Access**: Open your browser at `http://127.0.0.1:5000`.
+# Run the application
+python app.py
+```
 
-### Deploy to Cloud (Render/Heroku)
+The web interface will be available at `http://127.0.0.1:5000`.
 
-This project is ready for cloud deployment.
+## Usage
 
-1.  **Push to GitHub**: Upload this code to a new GitHub repository.
-2.  **Connect to Render/Heroku**:
-    -   Select "Web Service".
-    -   Connect your GitHub repo.
-    -   **Build Command**: `pip install -r requirements.txt`
-    -   **Start Command**: `gunicorn app:app`
-3.  **Done!** Your tool is now online.
+1. **Upload** literature export files (Web of Science or Scopus format)
+2. **Configure** exclusion keywords for title/abstract and journal name fields
+3. **Run** the screening process
+4. **Download** results:
+   - `cleaned_data.csv` for bibliometric analysis (e.g., VOSviewer)
+   - `removed_data.csv` for PRISMA flow diagram documentation
 
----
+## Dependencies
 
-## 📖 Usage Guide / 使用指南
+| Package | Purpose |
+|---------|---------|
+| Flask | Web framework |
+| Pandas | Data manipulation |
+| OpenPyXL | Excel file handling |
+| xlrd | Legacy Excel format support |
+| openai | LLM API integration (optional) |
+| gunicorn | Production server |
 
-1.  **Upload / 上传**: Drag and drop your literature files (WoS or Scopus exports).
-2.  **Configure / 配置**:
-    *   **Keywords**: Enter exclusion keywords (one per line).
-    *   **AI Screening**: (Optional) Enter DeepSeek API Key and criteria (e.g., "Exclude non-empirical studies").
-3.  **Screen / 筛选**: Click "Start Screening".
-4.  **Download / 下载**:
-    *   ✅ `cleaned_data.csv`: Import this into **VOSviewer**.
-    *   ❌ `removed_data.csv`: Check this for your **PRISMA** report.
+## File Structure
 
----
+```
+├── app.py                  # Flask application
+├── literature_screener.py  # Command-line interface
+├── templates/
+│   └── index.html          # Web interface
+├── requirements.txt
+├── start.bat               # Windows launcher
+└── start.sh                # Unix launcher
+```
 
-## 🛠️ Tech Stack
+## Citation
 
-- **Frontend**: HTML5, CSS3 (Variables, Dark Mode), Vanilla JS
-- **Backend**: Python (Flask), Pandas, OpenPyXL
-- **AI**: OpenAI SDK (DeepSeek-V3)
+If you use this tool in your research, please cite:
 
----
+```
+Literature Screening Tool. Available at: https://github.com/Jake-yutong/Results-Sifting-Tool
+```
 
-## 📧 Contact
+## License
 
-Created for Meta-Analysis & Bibliometrics Research.
-If you encounter issues, please check your file encoding (UTF-8 recommended) and Python version.
+This project is provided for academic and research purposes.
+
