@@ -14,36 +14,62 @@ A Python-based tool for preliminary screening in systematic reviews, meta-analys
 
 ## Installation
 
-### Prerequisites
+### System Requirements
 - Python 3.8 or higher
 - pip package manager
+- Supported operating systems: Windows 10/11, macOS 10.14+, Linux (Ubuntu 18.04+)
 
-### Quick Start
+### Option 1: One-Click Launch (Recommended)
 
 **Windows:**
-1. Download and extract this repository
-2. Double-click `start.bat`
+1. Download this repository: Click the green `Code` button → `Download ZIP`
+2. Extract the ZIP file to any folder
+3. Double-click `start.bat`
+4. A browser window will open automatically at `http://127.0.0.1:5000`
 
 **macOS / Linux:**
-```bash
-chmod +x start.sh && ./start.sh
-```
+1. Download and extract this repository
+2. Open Terminal and navigate to the extracted folder:
+   ```bash
+   cd /path/to/Results-Sifting-Tool
+   ```
+3. Run the launcher script:
+   ```bash
+   chmod +x start.sh
+   ./start.sh
+   ```
+4. Open `http://127.0.0.1:5000` in your browser
 
-### Manual Installation
+### Option 2: Manual Installation
 
 ```bash
-# Clone the repository
+# Step 1: Clone the repository
 git clone https://github.com/Jake-yutong/Results-Sifting-Tool.git
+
+# Step 2: Navigate to the project directory
 cd Results-Sifting-Tool
 
-# Install dependencies
+# Step 3: (Optional) Create a virtual environment
+python -m venv venv
+# Windows: venv\Scripts\activate
+# macOS/Linux: source venv/bin/activate
+
+# Step 4: Install required packages
 pip install -r requirements.txt
 
-# Run the application
+# Step 5: Launch the application
 python app.py
 ```
 
 The web interface will be available at `http://127.0.0.1:5000`.
+
+### Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| `python` command not found | Try `python3` instead, or verify Python is added to PATH |
+| Port 5000 already in use | Close other applications using this port, or modify `app.py` to use a different port |
+| Excel file read errors | Ensure input files are in `.xlsx`, `.xls`, or `.csv` format with UTF-8 encoding |
 
 ## Usage
 
