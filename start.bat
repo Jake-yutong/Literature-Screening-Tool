@@ -58,10 +58,20 @@ echo   Press Ctrl+C to stop the server
 echo ================================================
 echo.
 
-:: Open browser automatically
+:: Start Python server in background, then open browser after delay
+start /b %PYTHON_CMD% app.py
+
+:: Wait for server to start
+echo Waiting for server to start...
+timeout /t 3 /nobreak >nul
+
+:: Open browser
 start http://127.0.0.1:5000
 
-:: Run the app
-%PYTHON_CMD% app.py
+:: Keep window open and show server output
+echo.
+echo Server is running. Press Ctrl+C to stop.
+echo.
 
-pause
+:: Wait indefinitely (keep the window open)
+cmd /k
