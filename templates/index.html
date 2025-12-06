@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文献筛选工具 | Literature Screener</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg-page: #f8fafc;
+            --bg-card: #ffffff;
+            --bg-input: #f1f5f9;
+            --text-primary: #0f172a;
+            --text-secondary: #64748b;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --danger: #ef4444;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+        }
+
+        [data-theme="dark"] {
+            --primary: #3b82f6;
+            --primary-hover: #60a5fa;
+            --bg-page: #0f172a;
+            --bg-card: #1e293b;
+            --bg-input: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --success: #34d399;
+            --danger: #f87171;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-page);
+            color: var(--text-primary);
+            line-height: 1.5;
+            padding: 2rem;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        /* Theme Toggle */
+        .theme-toggle {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 0.5rem;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            box-shadow: var(--shadow);
+            transition: all 0.2s;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.1);
+            background: var(--bg-input);
+        }
+
+        /* Header */
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+            padding-top: 1rem;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        .emoji-icon {
+            font-size: 3rem;
+            display: block;
+            margin-bottom: 1rem;
+        }
+
+        /* Grid Layout */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-header .icon {
+            font-size: 1.5rem;
+            margin-right: 0.75rem;
+        }
+
+        .card-header h2 {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        /* Upload Zone */
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 3rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: var(--bg-input);
+        }
+
+        .upload-zone:hover,
+        .upload-zone.dragover {
+            border-color: var(--primary);
+            background: var(--bg-page);
+        }
+
+        .upload-zone .icon {
+            font-size: 2.5rem;
+            display: block;
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .upload-zone p {
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .upload-zone .formats {
+            display: inline-block;
+            background: var(--border);
+            color: var(--text-secondary);
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            margin-top: 1rem;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        /* File Info */
+        .file-info {
+            display: none;
+            align-items: center;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            color: var(--primary);
+        }
+
+        .file-info.show {
+            display: flex;
+        }
+
+        .file-info .name {
+            flex: 1;
+            margin: 0 0.75rem;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-info .remove {
+            cursor: pointer;
+            opacity: 0.7;
+        }
+
+        .file-info .remove:hover {
+            opacity: 1;
+        }
+
+        /* Inputs */
+        textarea,
+        .form-input {
+            width: 100%;
+            height: 150px;
+            padding: 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-input);
+            font-family: inherit;
+            font-size: 0.9rem;
+            resize: vertical;
+            transition: border-color 0.2s, background-color 0.2s;
+            color: var(--text-primary);
+        }
+
+        textarea:focus,
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: var(--bg-card);
+        }
+
+        .keyword-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .keyword-section label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .keyword-section .hint {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            font-size: 1rem;
+            width: 100%;
+            text-decoration: none;
+        }
+
+        .btn span {
+            margin-right: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        .btn-primary:disabled {
+            background: var(--text-secondary);
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+
+        .btn-outline:hover {
+            background: var(--bg-input);
+        }
+
+        /* Loading */
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 1.5rem;
+            color: var(--text-secondary);
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 3px solid #e2e8f0;
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 0.5rem;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Results Section */
+        .results-section {
+            display: none;
+            margin-top: 2rem;
+        }
+
+        .results-section.show {
+            display: block;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--bg-input);
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-card .label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .stat-card.success .value {
+            color: var(--success);
+        }
+
+        .stat-card.danger .value {
+            color: var(--danger);
+        }
+
+        .download-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1rem;
+        }
+
+        /* Alert */
+        .alert {
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+            display: none;
+            font-size: 0.9rem;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-error {
+            background: #fef2f2;
+            border: 1px solid #fee2e2;
+            color: var(--danger);
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 4rem 0;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        footer a {
+            color: var(--text-primary);
+            text-decoration: underline;
+        }
+
+        /* Column Detection Info */
+        .column-info {
+            background: var(--bg-input);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            font-size: 0.9rem;
+            border: 1px solid var(--border);
+        }
+
+        .column-info .item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.25rem 0;
+            color: var(--text-secondary);
+        }
+
+        .column-info .item span:last-child {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+
+        .column-info .detected {
+            color: var(--success) !important;
+        }
+
+        .column-info .not-found {
+            color: var(--danger) !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <button class="theme-toggle" id="themeToggle" title="切换深色/浅色模式">
+            ☀️
+        </button>
+
+        <header>
+            <span class="emoji-icon">📚</span>
+            <h1>Literature Screening Tool</h1>
+            <p>文献粗筛工具 - 快速处理元分析/文献计量学文献</p>
+        </header>
+
+        <div class="main-grid">
+            <!-- Left Column: Upload -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">📁</span>
+                    <h2>上传文献文件 / Upload File</h2>
+                </div>
+
+                <div class="upload-zone" id="uploadZone">
+                    <span class="icon">⬆️</span>
+                    <p>拖放文件到此处或点击上传</p>
+                    <p>Drop files here or click to upload</p>
+                    <span class="formats">支持 .xlsx, .xls, .csv (可多选 / Multiple files supported)</span>
+                    <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls,.csv" multiple>
+                </div>
+
+                <div class="file-info" id="fileInfo">
+                    <span>📄</span>
+                    <span class="name" id="fileName"></span>
+                    <span class="remove" id="removeFile">✕</span>
+                </div>
+
+                <div style="margin-top: 1.5rem;">
+                    <button class="btn btn-primary" id="screenBtn" disabled>
+                        <span>🔍</span>
+                        开始筛选 / Start Screening
+                    </button>
+                </div>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <span>正在处理... Processing...</span>
+                </div>
+
+                <div class="alert alert-error" id="errorAlert"></div>
+            </div>
+
+            <!-- Right Column: Keywords & AI -->
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">🏷️</span>
+                    <h2>筛选设置 / Screening Settings</h2>
+                </div>
+
+                <div class="keyword-section">
+                    <label>标题/摘要关键词黑名单 (Title/Abstract Blacklist)</label>
+                    <p class="hint">每行一个关键词 / One keyword per line</p>
+                    <textarea id="taKeywords">{{ default_ta }}</textarea>
+                </div>
+
+                <div class="keyword-section">
+                    <label>期刊名称关键词黑名单 (Journal Blacklist)</label>
+                    <p class="hint">每行一个关键词 / One keyword per line</p>
+                    <textarea id="journalKeywords">{{ default_journal }}</textarea>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border); margin: 2rem 0;">
+
+                <div class="keyword-section">
+                    <label>🤖 AI 智能筛选 (Optional)</label>
+                    <p class="hint">DeepSeek-V3 API Key</p>
+                    <input type="password" id="apiKey" class="form-input" placeholder="sk-..."
+                        style="width: 100%; padding: 0.75rem; margin-bottom: 1rem; border: 1px solid var(--border); border-radius: 6px;">
+
+                    <p class="hint">自然语言筛选标准 / Natural Language Criteria</p>
+                    <textarea id="aiCriteria" style="min-height: 100px;"
+                        placeholder="例如：去除所有非人工智能驱动的游戏化研究..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="results-section">
+            <div class="card">
+                <div class="card-header">
+                    <span class="icon">📊</span>
+                    <h2>筛选结果 / Screening Results</h2>
+                </div>
+
+                <div class="column-info" id="columnInfo">
+                    <div class="item">
+                        <span>Title Column:</span>
+                        <span id="titleCol" class="detected">-</span>
+                    </div>
+                    <div class="item">
+                        <span>Abstract Column:</span>
+                        <span id="abstractCol" class="detected">-</span>
+                    </div>
+                    <div class="item">
+                        <span>Journal Column:</span>
+                        <span id="sourceCol" class="detected">-</span>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="value" id="statTotal">0</div>
+                        <div class="label">总文献数 / Total</div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="value" id="statKept">0</div>
+                        <div class="label">保留 / Retained</div>
+                    </div>
+                    <div class="stat-card danger">
+                        <div class="value" id="statExcluded">0</div>
+                        <div class="label">排除 / Excluded</div>
+                    </div>
+                </div>
+
+                <div class="download-buttons">
+                    <a href="/download/cleaned" class="btn btn-success">
+                        ✅ 下载保留数据<br><small>cleaned_data.csv</small>
+                    </a>
+                    <a href="/download/removed" class="btn btn-outline"
+                        style="border-color: var(--danger); color: var(--danger);">
+                        ❌ 下载排除数据<br><small>removed_data.csv</small>
+                    </a>
+                    <a href="/download/both" class="btn btn-primary">
+                        📦 下载全部<br><small>ZIP 压缩包</small>
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Made for Meta-Analysis & Bibliometrics Research 📖</p>
+            <p>Import cleaned_data.csv into <a href="https://www.vosviewer.com/" target="_blank">VOSviewer</a> for
+                analysis</p>
+        </footer>
+    </div>
+
+    <script>
+        // Theme Toggle Logic
+        const themeToggle = document.getElementById('themeToggle');
+        const html = document.documentElement;
+
+        // Check local storage or system preference
+        const savedTheme = localStorage.getItem('theme');
+        const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        if (savedTheme === 'dark' || (!savedTheme && systemDark)) {
+            html.setAttribute('data-theme', 'dark');
+            themeToggle.textContent = '🌙';
+        } else {
+            html.setAttribute('data-theme', 'light');
+            themeToggle.textContent = '☀️';
+        }
+
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+            html.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            themeToggle.textContent = newTheme === 'dark' ? '🌙' : '☀️';
+        });
+
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const removeFile = document.getElementById('removeFile');
+        const screenBtn = document.getElementById('screenBtn');
+        const loading = document.getElementById('loading');
+        const errorAlert = document.getElementById('errorAlert');
+        const resultsSection = document.getElementById('resultsSection');
+
+        let selectedFiles = [];
+        let currentTaskId = null;
+        let pollInterval = null;
+
+        // File upload handling
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFiles(files);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFiles(e.target.files);
+            }
+        });
+
+        function handleFiles(files) {
+            const validExtensions = ['.xlsx', '.xls', '.csv'];
+            selectedFiles = []; // Reset
+
+            let names = [];
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const ext = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+
+                if (validExtensions.includes(ext)) {
+                    selectedFiles.push(file);
+                    names.push(file.name);
+                }
+            }
+
+            if (selectedFiles.length === 0) {
+                showError('不支持的文件格式。请上传 .xlsx, .xls 或 .csv 文件。');
+                return;
+            }
+
+            if (selectedFiles.length === 1) {
+                fileName.textContent = selectedFiles[0].name;
+            } else {
+                fileName.textContent = `${selectedFiles.length} 个文件 / files: ${names.join(', ')}`;
+            }
+
+            fileInfo.classList.add('show');
+            screenBtn.disabled = false;
+            hideError();
+        }
+
+        removeFile.addEventListener('click', () => {
+            selectedFiles = [];
+            fileInput.value = '';
+            fileInfo.classList.remove('show');
+            screenBtn.disabled = true;
+        });
+
+        // Screening
+        screenBtn.addEventListener('click', async () => {
+            if (selectedFiles.length === 0) return;
+
+            loading.classList.add('show');
+            screenBtn.disabled = true;
+            hideError();
+            resultsSection.classList.remove('show');
+
+            // Reset progress text
+            loading.querySelector('span').textContent = '正在初始化... Initializing...';
+
+            const formData = new FormData();
+            // Append all files
+            for (let i = 0; i < selectedFiles.length; i++) {
+                formData.append('file', selectedFiles[i]);
+            }
+
+            formData.append('ta_keywords', document.getElementById('taKeywords').value);
+            formData.append('journal_keywords', document.getElementById('journalKeywords').value);
+            formData.append('api_key', document.getElementById('apiKey').value);
+            formData.append('ai_criteria', document.getElementById('aiCriteria').value);
+
+            try {
+                // Step 1: Start Task
+                const response = await fetch('/screen', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    showError(data.error);
+                    loading.classList.remove('show');
+                    screenBtn.disabled = false;
+                } else {
+                    // Step 2: Poll Status
+                    currentTaskId = data.task_id;
+                    pollStatus();
+                }
+            } catch (error) {
+                showError('请求失败，请稍后重试。Error: ' + error.message);
+                loading.classList.remove('show');
+                screenBtn.disabled = false;
+            }
+        });
+
+        function pollStatus() {
+            if (!currentTaskId) return;
+
+            pollInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/status/${currentTaskId}`);
+                    const data = await response.json();
+
+                    if (data.status === 'processing' || data.status === 'queued') {
+                        // Update loading text
+                        const progress = data.progress || 0;
+                        const message = data.message || 'Processing...';
+                        loading.querySelector('span').textContent = `${message} (${progress}%)`;
+
+                    } else if (data.status === 'completed') {
+                        clearInterval(pollInterval);
+                        loading.classList.remove('show');
+                        screenBtn.disabled = false;
+                        showResults(data.stats, currentTaskId);
+
+                    } else if (data.status === 'error') {
+                        clearInterval(pollInterval);
+                        loading.classList.remove('show');
+                        screenBtn.disabled = false;
+                        showError('处理出错: ' + data.error);
+                    }
+
+                } catch (error) {
+                    console.error('Polling error:', error);
+                    // Don't stop polling on transient network errors, but maybe limit retries?
+                }
+            }, 1000); // Poll every 1 second
+        }
+
+        function showResults(stats, taskId) {
+            document.getElementById('statTotal').textContent = stats.total.toLocaleString();
+            document.getElementById('statKept').textContent = stats.kept.toLocaleString();
+            document.getElementById('statExcluded').textContent = stats.excluded.toLocaleString();
+
+            // Column detection
+            document.getElementById('titleCol').textContent = stats.title_col || '❌ Not found';
+            document.getElementById('titleCol').className = stats.title_col ? 'detected' : 'not-found';
+
+            document.getElementById('abstractCol').textContent = stats.abstract_col || '❌ Not found';
+            document.getElementById('abstractCol').className = stats.abstract_col ? 'detected' : 'not-found';
+
+            document.getElementById('sourceCol').textContent = stats.source_col || '❌ Not found';
+            document.getElementById('sourceCol').className = stats.source_col ? 'detected' : 'not-found';
+
+            // Update download links with task ID
+            const downloadBtns = document.querySelectorAll('.download-buttons a');
+            downloadBtns[0].href = `/download/${taskId}/cleaned`;
+            downloadBtns[1].href = `/download/${taskId}/removed`;
+            downloadBtns[2].href = `/download/${taskId}/both`;
+
+            resultsSection.classList.add('show');
+            resultsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function showError(message) {
+            errorAlert.textContent = '❌ ' + message;
+            errorAlert.classList.add('show');
+        }
+
+        function hideError() {
+            errorAlert.classList.remove('show');
+        }
+    </script>
+</body>
+
+</html>
