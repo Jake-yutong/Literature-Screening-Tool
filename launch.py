@@ -64,16 +64,18 @@ def main():
     
     # Import and run Flask app
     try:
-        import app
-        print("\n" + "=" * 60)
-        print("  Server started successfully!")
-        print(f"  Access at: {url}")
+        # Import the Flask app
+        from app import app as flask_app
+        
+        print("=" * 60)
+        print("  Server is starting...")
+        print(f"  URL: {url}")
         print("  Press Ctrl+C to stop")
         print("=" * 60)
         print()
         
-        # This will start the Flask server (blocking call)
-        # The app.py file will handle the actual server startup
+        # Start the Flask server (this is a blocking call)
+        flask_app.run(debug=False, host='0.0.0.0', port=port, use_reloader=False)
         
     except ImportError as e:
         print(f"\nError: Could not import app.py")
