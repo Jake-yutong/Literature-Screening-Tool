@@ -433,9 +433,11 @@ def download(task_id, filetype):
 
 
 if __name__ == '__main__':
+    import os
+    port = int(os.environ.get('PORT', 5000))
     print("\n" + "=" * 50)
     print("📚 Literature Screening Web App")
     print("=" * 50)
-    print("\n🌐 Open your browser and go to: http://127.0.0.1:5000")
+    print(f"\n🌐 Open your browser and go to: http://127.0.0.1:{port}")
     print("   Press Ctrl+C to stop the server\n")
-    app.run(debug=True, host='127.0.0.1', port=5000)
+    app.run(debug=False, host='0.0.0.0', port=port)
