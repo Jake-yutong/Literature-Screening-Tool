@@ -15,17 +15,27 @@ A Python-based tool for preliminary screening in systematic reviews, meta-analys
 ## Installation
 
 ### System Requirements
-- Python 3.8 or higher
+- **Python 3.8 or higher** (Must be properly installed, not Windows Store version)
 - pip package manager
 - Supported operating systems: Windows 10/11, macOS 10.14+, Linux (Ubuntu 18.04+)
 
 ### Option 1: One-Click Launch (Recommended)
 
 **Windows:**
+
+*If you don't have Python installed:*
+1. Download Python from https://www.python.org/downloads/
+2. **IMPORTANT**: During installation, check ☑️ "Add Python to PATH"
+3. Complete the installation and restart your computer
+
+*To run the tool:*
 1. Download this repository: Click the green `Code` button → `Download ZIP`
-2. Extract the ZIP file to any folder
+2. Extract the ZIP file to any folder (e.g., Desktop or Documents)
 3. Double-click `start.bat`
-4. A browser window will open automatically at `http://127.0.0.1:5000`
+   - First run: Dependencies will be installed automatically (takes 1-2 minutes)
+   - The terminal window will stay open showing server status
+   - After ~3 seconds, your browser will open automatically to `http://127.0.0.1:5000`
+4. To stop: Press `Ctrl+C` in the terminal window
 
 **macOS / Linux:**
 1. Download and extract this repository
@@ -38,7 +48,7 @@ A Python-based tool for preliminary screening in systematic reviews, meta-analys
    chmod +x start.sh
    ./start.sh
    ```
-4. Open `http://127.0.0.1:5000` in your browser
+4. Your browser will open automatically to `http://127.0.0.1:5000`
 
 ### Option 2: Manual Installation
 
@@ -67,9 +77,12 @@ The web interface will be available at `http://127.0.0.1:5000`.
 
 | Issue | Solution |
 |-------|----------|
-| `python` command not found | Try `python3` instead, or verify Python is added to PATH |
-| Port 5000 already in use | Close other applications using this port, or modify `app.py` to use a different port |
-| Excel file read errors | Ensure input files are in `.xlsx`, `.xls`, or `.csv` format with UTF-8 encoding |
+| Terminal closes immediately without output | Python is not installed correctly. Download from python.org and check "Add to PATH" during installation |
+| "Python was not found" error | This is the Windows Store placeholder. Install real Python from python.org OR disable the placeholder in Settings → Apps → App execution aliases |
+| Browser shows "Connection Refused" | Wait 5 seconds for the server to fully start, then refresh the page |
+| Dependencies fail to install | Check your internet connection. If behind a proxy, configure pip with: `pip config set global.proxy http://your-proxy:port` |
+| Port 5000 already in use | Another application is using this port. Close it or modify `PORT` in `app.py` |
+| Excel file read errors | Ensure files are in `.xlsx`, `.xls`, or `.csv` format with UTF-8 encoding |
 
 ## Usage
 
