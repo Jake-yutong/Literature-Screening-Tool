@@ -1,27 +1,67 @@
 @echo off
+chcp 65001 >nul
 echo ========================================
-echo    文献筛选工具 Literature Screener
+echo    Literature Screening Tool
 echo ========================================
 echo.
 
-:: Check Python
-python --version >nul 2>&1
-if errorlevel 1 (
-    echo [错误] 未找到 Python，请先安装 Python 3.8+
-    echo 下载地址: https://www.python.org/downloads/
-    pause
-    exit
+:: Check Python (try multiple commands)
+where python >nul 2>&1
+if %errorlevel%==0 (
+    set PYTHON_CMD=python
+    goto :found
 )
 
+where py >nul 2>&1
+if %errorlevel%==0 (
+    set PYTHON_CMD=py
+    goto :found
+)
+
+where python3 >nul 2>&1
+if %errorlevel%==0 (
+    set PYTHON_CMD=python3
+    goto :found
+)
+
+echo [ERROR] Python not found.
+echo.
+echo Please install Python 3.8+ from:
+echo https://www.python.org/downloads/
+echo.
+echo IMPORTANT: During installation, check "Add Python to PATH"
+echo.
+pause
+exit /b 1
+
+:found
+echo [OK] Found Python: %PYTHON_CMD%
+%PYTHON_CMD% --version
+echo.
+
 :: Install dependencies
-echo [1/2] 安装依赖...
-pip install -r requirements.txt -q
+echo [1/2] Installing dependencies...
+%PYTHON_CMD% -m pip install -r requirements.txt -q
+if %errorlevel% neq 0 (
+    echo [ERROR] Failed to install dependencies.
+    echo Trying with --user flag...
+    %PYTHON_CMD% -m pip install -r requirements.txt -q --user
+)
+echo.
 
 :: Start app
-echo [2/2] 启动应用...
+echo [2/2] Starting application...
 echo.
-echo ✅ 请在浏览器打开: http://127.0.0.1:5000
-echo    按 Ctrl+C 停止服务
+echo ================================================
+echo   Open in browser: http://127.0.0.1:5000
+echo   Press Ctrl+C to stop the server
+echo ================================================
 echo.
-python app.py
+
+:: Open browser automatically
+start http://127.0.0.1:5000
+
+:: Run the app
+%PYTHON_CMD% app.py
+
 pause
