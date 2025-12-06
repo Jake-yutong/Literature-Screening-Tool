@@ -2,26 +2,39 @@
 """
 Launcher script that starts the Flask server and opens the browser
 """
-import subprocess
 import time
 import webbrowser
 import socket
+import threading
 import sys
-import os
 
 def is_port_in_use(port):
     """Check if a port is already in use"""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        return s.connect_ex(('127.0.0.1', port)) == 0
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            return s.connect_ex(('127.0.0.1', port)) == 0
+    except:
+        return False
 
-def wait_for_server(host='127.0.0.1', port=5000, timeout=30):
+def wait_for_server(port=5000, timeout=15):
     """Wait for the server to be ready"""
+    print(f"Waiting for server to start on port {port}...")
     start_time = time.time()
     while time.time() - start_time < timeout:
         if is_port_in_use(port):
             return True
-        time.sleep(0.5)
+        time.sleep(0.3)
     return False
+
+def open_browser_delayed(url, delay=2):
+    """Open browser after a delay"""
+    time.sleep(delay)
+    print(f"\nOpening browser: {url}")
+    try:
+        webbrowser.open(url)
+    except Exception as e:
+        print(f"Could not open browser automatically: {e}")
+        print(f"Please open this URL manually: {url}")
 
 def main():
     port = 5000
@@ -34,65 +47,55 @@ def main():
     
     # Check if port is already in use
     if is_port_in_use(port):
-        print(f"⚠ Port {port} is already in use!")
+        print(f"Server is already running on port {port}!")
         print(f"Opening browser to {url}")
         webbrowser.open(url)
-        input("\nPress Enter to exit...")
+        print("\nPress Enter to exit...")
+        input()
         return
     
-    # Start Flask server in a subprocess
     print("Starting Flask server...")
+    print()
     
-    # Determine the correct Python command
-    python_cmd = sys.executable
+    # Start browser opener in background thread
+    browser_thread = threading.Thread(target=open_browser_delayed, args=(url, 3))
+    browser_thread.daemon = True
+    browser_thread.start()
     
-    # Start the server
-    server_process = subprocess.Popen(
-        [python_cmd, 'app.py'],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        bufsize=1
-    )
-    
-    # Wait for server to be ready
-    print(f"Waiting for server on {url}...")
-    
-    if wait_for_server(port=port):
-        print(f"✓ Server is ready!")
-        print(f"✓ Opening browser to {url}")
-        time.sleep(0.5)  # Small delay to ensure server is fully ready
-        webbrowser.open(url)
-        print()
-        print("=" * 60)
-        print("  Server is running!")
+    # Import and run Flask app
+    try:
+        import app
+        print("\n" + "=" * 60)
+        print("  Server started successfully!")
         print(f"  Access at: {url}")
-        print("  Press Ctrl+C to stop the server")
+        print("  Press Ctrl+C to stop")
         print("=" * 60)
         print()
         
-        # Stream server output
-        try:
-            for line in server_process.stdout:
-                print(line, end='')
-        except KeyboardInterrupt:
-            print("\n\nShutting down server...")
-            server_process.terminate()
-            server_process.wait()
-            print("Server stopped.")
-    else:
-        print("✗ Server failed to start within timeout period")
-        print("\nServer output:")
-        print("-" * 60)
-        output, _ = server_process.communicate(timeout=5)
-        print(output)
-        server_process.terminate()
-    
-    input("\nPress Enter to exit...")
+        # This will start the Flask server (blocking call)
+        # The app.py file will handle the actual server startup
+        
+    except ImportError as e:
+        print(f"\nError: Could not import app.py")
+        print(f"Details: {e}")
+        print("\nMake sure you are running this script from the correct directory.")
+        input("\nPress Enter to exit...")
+        sys.exit(1)
+    except Exception as e:
+        print(f"\nError starting server: {e}")
+        import traceback
+        traceback.print_exc()
+        input("\nPress Enter to exit...")
+        sys.exit(1)
 
 if __name__ == '__main__':
     try:
         main()
+    except KeyboardInterrupt:
+        print("\n\nServer stopped by user.")
     except Exception as e:
-        print(f"\n✗ Error: {e}")
+        print(f"\nUnexpected error: {e}")
+        import traceback
+        traceback.print_exc()
         input("\nPress Enter to exit...")
+        sys.exit(1)
