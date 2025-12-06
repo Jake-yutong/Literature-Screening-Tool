@@ -24,7 +24,22 @@ Designed to streamline the process of filtering thousands of papers from **Web o
 
 ## 🚀 Quick Start / 快速开始
 
-### Option 1: Run Locally (Recommended)
+### 一键启动 (推荐)
+
+**Windows 用户：**
+1. 点击绿色 **Code** → **Download ZIP** 下载并解压
+2. 双击 `start.bat`
+3. 浏览器自动打开工具 ✅
+
+**Mac / Linux 用户：**
+1. 下载 ZIP 并解压
+2. 终端运行：
+   ```bash
+   chmod +x start.sh && ./start.sh
+   ```
+3. 打开浏览器访问 http://127.0.0.1:5000
+
+### 手动运行
 
 1.  **Install Python**: Ensure Python 3.8+ is installed.
 2.  **Download Code**: Clone this repository or download the ZIP.
@@ -38,7 +53,7 @@ Designed to streamline the process of filtering thousands of papers from **Web o
     ```
 5.  **Access**: Open your browser at `http://127.0.0.1:5000`.
 
-### Option 2: Deploy to Cloud (Render/Heroku)
+### Deploy to Cloud (Render/Heroku)
 
 This project is ready for cloud deployment.
 
