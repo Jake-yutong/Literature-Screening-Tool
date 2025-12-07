@@ -391,21 +391,42 @@ def screen_literature_task(task_id, df, title_abstract_keywords, journal_keyword
                     title = row[title_col] if title_col else "N/A"
                     abstract = row[abstract_col] if abstract_col else "N/A"
                     
-                    prompt = f"""
-                    You are a research assistant. Screen this paper based on the following exclusion criteria:
-                    "{ai_criteria}"
-                    
-                    Paper Title: {title}
-                    Paper Abstract: {abstract}
-                    
-                    Reply strictly in JSON format: {{"exclude": boolean, "reason": "short reason"}}
-                    """
+                    prompt = f"""You are a rigorous research screening assistant. Your task is to determine if this paper should be EXCLUDED based on the following criteria:
+
+EXCLUSION CRITERIA:
+{ai_criteria}
+
+PAPER TO EVALUATE:
+Title: {title}
+Abstract: {abstract}
+
+SCREENING INSTRUCTIONS:
+1. Read the title and abstract carefully
+2. Determine if the paper's PRIMARY focus matches the exclusion criteria
+3. Be STRICT: if there's any doubt about whether it should be excluded, mark exclude=true
+4. Common exclusion examples:
+   - Papers about robot design/engineering without educational focus → EXCLUDE
+   - Papers about technical systems/simulations not for education → EXCLUDE
+   - Papers about medical/clinical applications → EXCLUDE
+   - Papers about sports/athletics → EXCLUDE
+   - Papers about pure computer science/AI without teaching context → EXCLUDE
+
+5. Only KEEP papers that are clearly about:
+   - Education pedagogy, teaching methods, or learning outcomes
+   - K-12 education, classroom interventions, or student learning
+   - Educational technology used IN teaching contexts
+   - Teacher training or educational policy
+
+OUTPUT FORMAT (JSON only):
+{{"exclude": true/false, "reason": "brief explanation (max 15 words)"}}
+
+IMPORTANT: When in doubt, EXCLUDE the paper. Be conservative and strict."""
                     
                     try:
                         response = client.chat.completions.create(
                             model="deepseek-chat",
                             messages=[
-                                {"role": "system", "content": "You are a helpful assistant that outputs JSON."},
+                                {"role": "system", "content": "You are a strict academic paper screening assistant. You apply exclusion criteria rigorously and conservatively. When uncertain, you exclude papers. You only output valid JSON format."},
                                 {"role": "user", "content": prompt}
                             ],
                             response_format={"type": "json_object"},
@@ -420,7 +441,36 @@ def screen_literature_task(task_id, df, title_abstract_keywords, journal_keyword
                             stats['ai_excluded'] += 1
                             print(f"   ❌ Excluded: {result.get('reason', 'Criteria matched')}", flush=True)
                         else:
-                            print(f"   ✅ Kept", flush=True)
+                            # Double-check: verify it's actually education-related
+                            verify_prompt = f"""Is this paper's PRIMARY focus on education/pedagogy/teaching/K-12/learning?
+
+Title: {title}
+Abstract: {abstract}
+
+Answer in JSON: {{"is_education": true/false, "confidence": "high/medium/low"}}
+
+If this is mainly about: robotics, engineering, medicine, sports, computer science, chemistry, physics, or other non-education fields → is_education=false
+Only return is_education=true if the paper is CLEARLY about teaching, learning, educational interventions, or K-12 education."""
+
+                            verify_response = client.chat.completions.create(
+                                model="deepseek-chat",
+                                messages=[
+                                    {"role": "system", "content": "You verify if papers are truly education-focused. Be strict."},
+                                    {"role": "user", "content": verify_prompt}
+                                ],
+                                response_format={"type": "json_object"},
+                                temperature=0.0
+                            )
+                            
+                            verify_result = json.loads(verify_response.choices[0].message.content)
+                            
+                            if not verify_result.get('is_education', True):
+                                df.at[idx, '_EXCLUDED'] = True
+                                df.at[idx, '_EXCLUSION_REASON'] = f"AI: Not education-focused (confidence: {verify_result.get('confidence', 'medium')})"
+                                stats['ai_excluded'] += 1
+                                print(f"   ❌ Excluded on verification: Not education-focused", flush=True)
+                            else:
+                                print(f"   ✅ Kept (verified education-related)", flush=True)
                             
                     except Exception as e:
                         print(f"   ⚠️ AI Error for row {idx}: {e}", flush=True)
