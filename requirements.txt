@@ -4,5 +4,6 @@ openpyxl
 xlrd
 xlwt
 rispy
+bibtexparser
 openai
 gunicorn

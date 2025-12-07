@@ -604,8 +604,8 @@
                     <div class="upload-zone-icon">↑</div>
                     <p class="primary-text" data-i18n="upload-primary">Click to upload or drag and drop</p>
                     <p data-i18n="upload-secondary">Support multiple files</p>
-                    <span class="formats" data-i18n="upload-formats">.xlsx .xls .csv .ris .txt</span>
-                    <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls,.csv,.ris,.txt" multiple>
+                    <span class="formats" data-i18n="upload-formats">.xlsx .xls .csv .ris .bib .txt</span>
+                    <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls,.csv,.ris,.bib,.txt" multiple>
                 </div>
 
                 <div class="file-info" id="fileInfo">
@@ -707,6 +707,7 @@
                         <option value="xls">Excel Legacy (.xls)</option>
                         <option value="txt">Plain Text (Tab-Separated)</option>
                         <option value="ris">RIS (Reference Manager)</option>
+                        <option value="bib">BibTeX (LaTeX Citations)</option>
                     </select>
                 </div>
 
@@ -743,7 +744,7 @@
                 'upload-title': 'Upload Literature Files',
                 'upload-primary': 'Click to upload or drag and drop',
                 'upload-secondary': 'Support multiple files',
-                'upload-formats': '.xlsx .xls .csv .ris .txt',
+                'upload-formats': '.xlsx .xls .csv .ris .bib .txt',
                 'btn-start': 'Start Screening',
                 'status-processing': 'Processing...',
                 'settings-title': 'Screening Settings',
@@ -776,7 +777,7 @@
                 'upload-title': '上传文献文件',
                 'upload-primary': '点击上传或拖放文件',
                 'upload-secondary': '支持多文件',
-                'upload-formats': '.xlsx .xls .csv .ris .txt',
+                'upload-formats': '.xlsx .xls .csv .ris .bib .txt',
                 'btn-start': '开始筛选',
                 'status-processing': '正在处理...',
                 'settings-title': '筛选设置',
@@ -906,7 +907,7 @@
         });
 
         function handleFiles(files) {
-            const validExtensions = ['.xlsx', '.xls', '.csv', '.ris', '.txt'];
+            const validExtensions = ['.xlsx', '.xls', '.csv', '.ris', '.bib', '.txt'];
             selectedFiles = []; // Reset
 
             let names = [];
@@ -921,7 +922,7 @@
             }
 
             if (selectedFiles.length === 0) {
-                showError('不支持的文件格式。请上传 .xlsx, .xls, .csv, .ris 或 .txt 文件。');
+                showError('不支持的文件格式。请上传 .xlsx, .xls, .csv, .ris, .bib 或 .txt 文件。');
                 return;
             }
 

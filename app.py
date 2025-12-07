@@ -15,6 +15,9 @@ import time
 from datetime import datetime
 import rispy
 import xlwt
+import bibtexparser
+from bibtexparser.bwriter import BibTexWriter
+from bibtexparser.bibdatabase import BibDatabase
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
@@ -130,6 +133,92 @@ def df_to_ris(df, title_col='Title', abstract_col='Abstract', source_col='Source
     # Use rispy to dump to string
     ris_string = rispy.dumps(ris_entries)
     return ris_string
+
+
+def parse_bibtex_file(file_content):
+    """Parse BibTeX file content and convert to DataFrame."""
+    try:
+        text_content = file_content.decode('utf-8')
+        bib_database = bibtexparser.loads(text_content)
+        
+        records = []
+        for entry in bib_database.entries:
+            record = {
+                'Title': entry.get('title', '').replace('{', '').replace('}', ''),
+                'Abstract': entry.get('abstract', ''),
+                'Source title': entry.get('journal', '') or entry.get('booktitle', ''),
+                'Authors': entry.get('author', '').replace(' and ', '; '),
+                'Year': entry.get('year', ''),
+                'DOI': entry.get('doi', ''),
+                'Keywords': entry.get('keywords', ''),
+                'Type': entry.get('ENTRYTYPE', ''),
+                'URL': entry.get('url', ''),
+                'Publisher': entry.get('publisher', ''),
+                'Volume': entry.get('volume', ''),
+                'Pages': entry.get('pages', ''),
+            }
+            records.append(record)
+        
+        return pd.DataFrame(records)
+    except Exception as e:
+        raise ValueError(f"Error parsing BibTeX file: {str(e)}")
+
+
+def df_to_bibtex(df, title_col='Title', abstract_col='Abstract', source_col='Source title'):
+    """Convert DataFrame to BibTeX format string."""
+    bib_db = BibDatabase()
+    entries = []
+    
+    for idx, row in df.iterrows():
+        # Generate citation key from author and year or use index
+        year = str(row.get('Year', '')) if pd.notna(row.get('Year')) else ''
+        authors = str(row.get('Authors', '')) if pd.notna(row.get('Authors')) else ''
+        
+        if authors and year:
+            first_author = authors.split(';')[0].split(',')[0].strip().replace(' ', '')
+            cite_key = f"{first_author}{year}"
+        else:
+            cite_key = f"ref{idx+1}"
+        
+        entry = {
+            'ID': cite_key,
+            'ENTRYTYPE': 'article',
+            'title': str(row.get(title_col, '')) if pd.notna(row.get(title_col)) else '',
+            'abstract': str(row.get(abstract_col, '')) if pd.notna(row.get(abstract_col)) else '',
+            'journal': str(row.get(source_col, '')) if pd.notna(row.get(source_col)) else '',
+        }
+        
+        # Add optional fields
+        if 'Authors' in row and pd.notna(row['Authors']):
+            entry['author'] = str(row['Authors']).replace(';', ' and')
+        
+        if 'Year' in row and pd.notna(row['Year']):
+            entry['year'] = str(row['Year'])
+        
+        if 'DOI' in row and pd.notna(row['DOI']):
+            entry['doi'] = str(row['DOI'])
+        
+        if 'Keywords' in row and pd.notna(row['Keywords']):
+            entry['keywords'] = str(row['Keywords'])
+        
+        if 'URL' in row and pd.notna(row['URL']):
+            entry['url'] = str(row['URL'])
+        
+        if 'Publisher' in row and pd.notna(row['Publisher']):
+            entry['publisher'] = str(row['Publisher'])
+        
+        if 'Volume' in row and pd.notna(row['Volume']):
+            entry['volume'] = str(row['Volume'])
+        
+        if 'Pages' in row and pd.notna(row['Pages']):
+            entry['pages'] = str(row['Pages'])
+        
+        entries.append(entry)
+    
+    bib_db.entries = entries
+    writer = BibTexWriter()
+    writer.indent = '  '
+    return writer.write(bib_db)
 
 
 def screen_literature_task(task_id, df, title_abstract_keywords, journal_keywords, api_key=None, ai_criteria=None):
@@ -348,6 +437,11 @@ def screen():
                     content = file.read()
                     df = parse_ris_file(content)
                     print(f"   Parsed RIS file: {filename}, {len(df)} records", flush=True)
+                elif filename.endswith('.bib'):
+                    # BibTeX file support
+                    content = file.read()
+                    df = parse_bibtex_file(content)
+                    print(f"   Parsed BibTeX file: {filename}, {len(df)} records", flush=True)
                 elif filename.endswith('.csv') or filename.endswith('.txt'):
                     # WoS exports often come as tab-delimited .txt or .csv
                     content = file.read()
@@ -506,6 +600,12 @@ def download(task_id, dataset, format):
                 buffer.write(ris_str.encode('utf-8'))
                 mimetype = 'application/x-research-info-systems'
                 filename = f'{filename_base}.ris'
+                
+            elif fmt == 'bib':
+                bib_str = df_to_bibtex(df, title_col, abstract_col, source_col)
+                buffer.write(bib_str.encode('utf-8'))
+                mimetype = 'application/x-bibtex'
+                filename = f'{filename_base}.bib'
                 
             else:
                 raise ValueError(f"Unsupported format: {fmt}")
