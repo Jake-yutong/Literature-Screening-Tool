@@ -70,6 +70,78 @@ def contains_blacklisted_keyword(text, blacklist):
     return False, ""
 
 
+def remove_duplicates(df, title_col='Title', method='doi_title'):
+    """
+    Remove duplicate records from DataFrame.
+    
+    Args:
+        df: DataFrame to deduplicate
+        title_col: Name of the title column
+        method: Deduplication method
+            - 'doi': Remove duplicates based on DOI (if available)
+            - 'title': Remove duplicates based on title similarity
+            - 'doi_title': Try DOI first, then title (default)
+    
+    Returns:
+        Tuple of (deduplicated_df, duplicate_info_dict)
+    """
+    original_count = len(df)
+    df_clean = df.copy()
+    
+    # Track duplicates
+    duplicates_removed = 0
+    duplicate_details = []
+    
+    # Step 1: Remove DOI-based duplicates
+    if 'DOI' in df_clean.columns and method in ['doi', 'doi_title']:
+        # Only consider rows with non-empty DOI
+        doi_mask = df_clean['DOI'].notna() & (df_clean['DOI'].astype(str).str.strip() != '')
+        
+        if doi_mask.any():
+            # Mark duplicates based on DOI (keep first occurrence)
+            df_clean['_temp_doi_dup'] = df_clean['DOI'].where(doi_mask)
+            duplicated_doi = df_clean.duplicated(subset=['_temp_doi_dup'], keep='first')
+            
+            if duplicated_doi.any():
+                dup_count = duplicated_doi.sum()
+                duplicates_removed += dup_count
+                duplicate_details.append(f"DOI-based: {dup_count} duplicates")
+                df_clean = df_clean[~duplicated_doi]
+            
+            df_clean = df_clean.drop(columns=['_temp_doi_dup'])
+    
+    # Step 2: Remove title-based duplicates
+    if title_col in df_clean.columns and method in ['title', 'doi_title']:
+        # Normalize titles for comparison
+        df_clean['_temp_title_norm'] = df_clean[title_col].astype(str).str.lower().str.strip()
+        df_clean['_temp_title_norm'] = df_clean['_temp_title_norm'].str.replace(r'[^\w\s]', '', regex=True)
+        df_clean['_temp_title_norm'] = df_clean['_temp_title_norm'].str.replace(r'\s+', ' ', regex=True)
+        
+        # Remove exact title duplicates (keep first)
+        duplicated_title = df_clean.duplicated(subset=['_temp_title_norm'], keep='first')
+        
+        if duplicated_title.any():
+            dup_count = duplicated_title.sum()
+            duplicates_removed += dup_count
+            duplicate_details.append(f"Title-based: {dup_count} duplicates")
+            df_clean = df_clean[~duplicated_title]
+        
+        df_clean = df_clean.drop(columns=['_temp_title_norm'])
+    
+    # Reset index
+    df_clean = df_clean.reset_index(drop=True)
+    
+    dedup_info = {
+        'original_count': original_count,
+        'duplicates_removed': duplicates_removed,
+        'final_count': len(df_clean),
+        'details': duplicate_details,
+        'method': method
+    }
+    
+    return df_clean, dedup_info
+
+
 def parse_ris_file(file_content):
     """Parse RIS file content and convert to DataFrame."""
     try:
@@ -221,17 +293,26 @@ def df_to_bibtex(df, title_col='Title', abstract_col='Abstract', source_col='Sou
     return writer.write(bib_db)
 
 
-def screen_literature_task(task_id, df, title_abstract_keywords, journal_keywords, api_key=None, ai_criteria=None):
+def screen_literature_task(task_id, df, title_abstract_keywords, journal_keywords, api_key=None, ai_criteria=None, remove_duplicates_flag=False):
     """Background task for screening literature."""
     try:
         tasks[task_id]['status'] = 'processing'
         tasks[task_id]['progress'] = 0
         tasks[task_id]['message'] = 'Initializing...'
         
+        original_total = len(df)
+        
         # Find relevant columns
         title_col = find_column(df, "title")
         abstract_col = find_column(df, "abstract")
         source_col = find_column(df, "source")
+        
+        # --- Step 0: Remove duplicates if requested ---
+        dedup_info = None
+        if remove_duplicates_flag:
+            tasks[task_id]['message'] = 'Removing duplicates...'
+            df, dedup_info = remove_duplicates(df, title_col=title_col or 'Title', method='doi_title')
+            print(f"🔄 Deduplication: {dedup_info['duplicates_removed']} duplicates removed ({dedup_info['original_count']} → {dedup_info['final_count']})", flush=True)
         
         # Parse keywords
         ta_blacklist = [k.strip() for k in title_abstract_keywords.split('\n') if k.strip()]
@@ -242,13 +323,15 @@ def screen_literature_task(task_id, df, title_abstract_keywords, journal_keyword
         df['_EXCLUSION_REASON'] = ''
         
         stats = {
+            'original_total': original_total,
             'total': len(df),
             'title_col': title_col,
             'abstract_col': abstract_col,
             'source_col': source_col,
             'title_abstract_excluded': 0,
             'journal_excluded': 0,
-            'ai_excluded': 0
+            'ai_excluded': 0,
+            'deduplication': dedup_info
         }
         
         tasks[task_id]['message'] = 'Keyword Screening...'
@@ -494,6 +577,9 @@ def screen():
         df = pd.concat(dfs, ignore_index=True)
         print(f"Merged {len(dfs)} files. Total rows: {len(df)}", flush=True)
         
+        # Get deduplication preference
+        remove_duplicates_flag = request.form.get('remove_duplicates', 'false').lower() == 'true'
+        
         # Create task
         task_id = str(uuid.uuid4())
         tasks[task_id] = {
@@ -505,7 +591,7 @@ def screen():
         
         # Start background thread
         thread = threading.Thread(target=screen_literature_task, 
-                                args=(task_id, df, ta_keywords, journal_keywords, api_key, ai_criteria))
+                                args=(task_id, df, ta_keywords, journal_keywords, api_key, ai_criteria, remove_duplicates_flag))
         thread.daemon = True
         thread.start()
         

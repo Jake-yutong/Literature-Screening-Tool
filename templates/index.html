@@ -650,6 +650,16 @@
                 <hr style="border: 0; border-top: 1px solid var(--border); margin: 2rem 0;">
 
                 <div class="keyword-section">
+                    <label style="display: flex; align-items: center; cursor: pointer; user-select: none;">
+                        <input type="checkbox" id="removeDuplicates" style="margin-right: 0.5rem; width: auto; cursor: pointer;">
+                        <span data-i18n="label-remove-duplicates">Remove duplicate records</span>
+                    </label>
+                    <p class="hint" data-i18n="hint-remove-duplicates">Automatically merge duplicate entries from different databases (based on DOI and title)</p>
+                </div>
+
+                <hr style="border: 0; border-top: 1px solid var(--border); margin: 2rem 0;">
+
+                <div class="keyword-section">
                     <label data-i18n="label-ai">AI-Powered Screening (Optional)</label>
                     <p class="hint" data-i18n="hint-api-key">DeepSeek API Key</p>
                     <input type="password" id="apiKey" class="form-input" placeholder="sk-...">
@@ -681,6 +691,16 @@
                     <div class="item">
                         <span data-i18n="col-journal">Journal Column:</span>
                         <span id="sourceCol" class="detected">-</span>
+                    </div>
+                </div>
+
+                <div id="dedupInfo" style="display: none; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 1rem; margin-bottom: 1.5rem;">
+                    <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
+                        <span style="font-weight: 500; font-size: 0.875rem;" data-i18n="dedup-title">Deduplication Applied</span>
+                    </div>
+                    <div style="font-size: 0.8125rem; color: var(--text-secondary);">
+                        <span data-i18n="dedup-removed">Duplicates removed:</span> <strong id="dedupCount">0</strong>
+                        <span style="margin-left: 1rem;">(<span id="dedupOriginal">0</span> → <span id="dedupFinal">0</span>)</span>
                     </div>
                 </div>
 
@@ -751,6 +771,8 @@
                 'label-ta-blacklist': 'Title/Abstract Exclusion Keywords',
                 'label-journal-blacklist': 'Journal Exclusion Keywords',
                 'hint-keywords': 'One keyword per line',
+                'label-remove-duplicates': 'Remove duplicate records',
+                'hint-remove-duplicates': 'Automatically merge duplicate entries from different databases (based on DOI and title)',
                 'label-ai': 'AI-Powered Screening (Optional)',
                 'hint-api-key': 'DeepSeek API Key',
                 'hint-ai-criteria': 'Natural language exclusion criteria',
@@ -759,6 +781,8 @@
                 'col-title': 'Title Column:',
                 'col-abstract': 'Abstract Column:',
                 'col-journal': 'Journal Column:',
+                'dedup-title': 'Deduplication Applied',
+                'dedup-removed': 'Duplicates removed:',
                 'stat-total': 'Total Records',
                 'stat-kept': 'Retained',
                 'stat-excluded': 'Excluded',
@@ -784,6 +808,8 @@
                 'label-ta-blacklist': '标题/摘要排除关键词',
                 'label-journal-blacklist': '期刊排除关键词',
                 'hint-keywords': '每行一个关键词',
+                'label-remove-duplicates': '去除重复记录',
+                'hint-remove-duplicates': '自动合并来自不同数据库的重复条目（基于DOI和标题）',
                 'label-ai': 'AI 智能筛选（可选）',
                 'hint-api-key': 'DeepSeek API 密钥',
                 'hint-ai-criteria': '自然语言排除标准',
@@ -792,6 +818,8 @@
                 'col-title': '标题列：',
                 'col-abstract': '摘要列：',
                 'col-journal': '期刊列：',
+                'dedup-title': '已应用去重',
+                'dedup-removed': '已移除重复：',
                 'stat-total': '总记录数',
                 'stat-kept': '保留',
                 'stat-excluded': '排除',
@@ -966,6 +994,7 @@
             formData.append('journal_keywords', document.getElementById('journalKeywords').value);
             formData.append('api_key', document.getElementById('apiKey').value);
             formData.append('ai_criteria', document.getElementById('aiCriteria').value);
+            formData.append('remove_duplicates', document.getElementById('removeDuplicates').checked.toString());
 
             try {
                 // Step 1: Start Task
@@ -1040,6 +1069,16 @@
 
             document.getElementById('sourceCol').textContent = stats.source_col || '❌ Not found';
             document.getElementById('sourceCol').className = stats.source_col ? 'detected' : 'not-found';
+
+            // Show deduplication info if applicable
+            if (stats.deduplication && stats.deduplication.duplicates_removed > 0) {
+                document.getElementById('dedupInfo').style.display = 'block';
+                document.getElementById('dedupCount').textContent = stats.deduplication.duplicates_removed.toLocaleString();
+                document.getElementById('dedupOriginal').textContent = stats.deduplication.original_count.toLocaleString();
+                document.getElementById('dedupFinal').textContent = stats.deduplication.final_count.toLocaleString();
+            } else {
+                document.getElementById('dedupInfo').style.display = 'none';
+            }
 
             // Setup download buttons with format selection
             const exportFormat = document.getElementById('exportFormat');
