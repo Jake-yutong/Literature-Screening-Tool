@@ -2,15 +2,24 @@
 
 A Python-based tool for preliminary screening in systematic reviews, meta-analyses, and bibliometric studies. This tool facilitates the filtering of large literature datasets exported from Web of Science and Scopus.
 
+## ✨ What's New in v1.1.0
+
+- **🌐 Bilingual Interface**: Seamless EN/中文 language switching
+- **📄 RIS File Support**: Import and export RIS (Research Information Systems) format
+- **📊 Multiple Export Formats**: CSV, Excel (.xlsx/.xls), TXT, and RIS
+- **🎨 Professional UI**: Refined academic-style interface with improved dark mode
+- **⚡ Enhanced Performance**: Optimized file processing and format conversion
+
 ## Features
 
-- **Batch processing**: Supports multiple file uploads (.xlsx, .xls, .csv)
+- **Batch processing**: Supports multiple file uploads (.xlsx, .xls, .csv, .ris, .txt)
 - **Format standardization**: Automatically converts Web of Science export format to Scopus-compatible format for VOSviewer
 - **Keyword-based exclusion**: Filter records by title, abstract, or journal name
 - **LLM-assisted screening** (optional): Integration with DeepSeek API for natural language-based filtering criteria
+- **Flexible export options**: Download results in CSV, Excel, TXT, or RIS format
 - **Structured output**:
-  - `cleaned_data.csv` — Retained records for downstream analysis
-  - `removed_data.csv` — Excluded records with documented exclusion reasons (for PRISMA reporting)
+  - Retained records for downstream analysis
+  - Excluded records with documented exclusion reasons (for PRISMA reporting)
 
 ## Installation
 

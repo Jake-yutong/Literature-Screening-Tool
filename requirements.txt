@@ -2,5 +2,7 @@ flask
 pandas
 openpyxl
 xlrd
+xlwt
+rispy
 openai
 gunicorn

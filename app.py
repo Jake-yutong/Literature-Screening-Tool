@@ -13,6 +13,8 @@ import threading
 import uuid
 import time
 from datetime import datetime
+import rispy
+import xlwt
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
@@ -63,6 +65,71 @@ def contains_blacklisted_keyword(text, blacklist):
         if keyword.lower().strip() in text_lower:
             return True, keyword
     return False, ""
+
+
+def parse_ris_file(file_content):
+    """Parse RIS file content and convert to DataFrame."""
+    try:
+        # RIS files are text-based
+        text_content = file_content.decode('utf-8')
+        entries = rispy.loads(text_content)
+        
+        # Convert to DataFrame
+        records = []
+        for entry in entries:
+            record = {
+                'Title': entry.get('title') or entry.get('primary_title', ''),
+                'Abstract': entry.get('abstract', ''),
+                'Source title': entry.get('journal_name') or entry.get('secondary_title', ''),
+                'Authors': '; '.join(entry.get('authors', [])),
+                'Year': entry.get('year', ''),
+                'DOI': entry.get('doi', ''),
+                'Keywords': '; '.join(entry.get('keywords', [])),
+                'Type': entry.get('type_of_reference', ''),
+                'URL': entry.get('url', ''),
+            }
+            records.append(record)
+        
+        return pd.DataFrame(records)
+    except Exception as e:
+        raise ValueError(f"Error parsing RIS file: {str(e)}")
+
+
+def df_to_ris(df, title_col='Title', abstract_col='Abstract', source_col='Source title'):
+    """Convert DataFrame to RIS format string."""
+    ris_entries = []
+    
+    for idx, row in df.iterrows():
+        entry = {
+            'type_of_reference': 'JOUR',  # Journal Article
+            'title': str(row.get(title_col, '')) if pd.notna(row.get(title_col)) else '',
+            'abstract': str(row.get(abstract_col, '')) if pd.notna(row.get(abstract_col)) else '',
+            'journal_name': str(row.get(source_col, '')) if pd.notna(row.get(source_col)) else '',
+        }
+        
+        # Add optional fields if they exist
+        if 'Authors' in row and pd.notna(row['Authors']):
+            authors_str = str(row['Authors'])
+            entry['authors'] = [a.strip() for a in authors_str.split(';') if a.strip()]
+        
+        if 'Year' in row and pd.notna(row['Year']):
+            entry['year'] = str(row['Year'])
+        
+        if 'DOI' in row and pd.notna(row['DOI']):
+            entry['doi'] = str(row['DOI'])
+        
+        if 'Keywords' in row and pd.notna(row['Keywords']):
+            keywords_str = str(row['Keywords'])
+            entry['keywords'] = [k.strip() for k in keywords_str.split(';') if k.strip()]
+        
+        if 'URL' in row and pd.notna(row['URL']):
+            entry['url'] = str(row['URL'])
+        
+        ris_entries.append(entry)
+    
+    # Use rispy to dump to string
+    ris_string = rispy.dumps(ris_entries)
+    return ris_string
 
 
 def screen_literature_task(task_id, df, title_abstract_keywords, journal_keywords, api_key=None, ai_criteria=None):
@@ -203,18 +270,15 @@ def screen_literature_task(task_id, df, title_abstract_keywords, journal_keyword
         stats['kept'] = len(df_kept)
         stats['excluded'] = len(df_removed)
         
-        # Create CSV outputs in memory
-        cleaned_buffer = io.StringIO()
-        removed_buffer = io.StringIO()
-        
-        df_kept.to_csv(cleaned_buffer, index=False, encoding='utf-8')
-        df_removed.to_csv(removed_buffer, index=False, encoding='utf-8')
-        
+        # Store dataframes directly for later format conversion
         tasks[task_id]['result'] = {
             'stats': stats,
-            'cleaned': cleaned_buffer.getvalue(),
-            'removed': removed_buffer.getvalue(),
-            'timestamp': datetime.now().strftime("%Y%m%d_%H%M%S")
+            'df_kept': df_kept,
+            'df_removed': df_removed,
+            'timestamp': datetime.now().strftime("%Y%m%d_%H%M%S"),
+            'title_col': title_col,
+            'abstract_col': abstract_col,
+            'source_col': source_col
         }
         tasks[task_id]['status'] = 'completed'
         tasks[task_id]['progress'] = 100
@@ -279,6 +343,11 @@ def screen():
                     df = pd.read_excel(file, engine='openpyxl')
                 elif filename.endswith('.xls'):
                     df = pd.read_excel(file, engine='xlrd')
+                elif filename.endswith('.ris'):
+                    # RIS file support
+                    content = file.read()
+                    df = parse_ris_file(content)
+                    print(f"   Parsed RIS file: {filename}, {len(df)} records", flush=True)
                 elif filename.endswith('.csv') or filename.endswith('.txt'):
                     # WoS exports often come as tab-delimited .txt or .csv
                     content = file.read()
@@ -373,10 +442,16 @@ def task_status(task_id):
     return jsonify(response)
 
 
-@app.route('/download/<task_id>/<filetype>')
-def download(task_id, filetype):
-    """Download the processed files."""
-    print(f"📥 Download request: task_id={task_id}, filetype={filetype}", flush=True)
+@app.route('/download/<task_id>/<dataset>/<format>')
+def download(task_id, dataset, format):
+    """Download the processed files in various formats.
+    
+    Args:
+        task_id: The task identifier
+        dataset: 'cleaned', 'removed', or 'both'
+        format: 'csv', 'xlsx', 'xls', 'txt', or 'ris'
+    """
+    print(f"📥 Download request: task_id={task_id}, dataset={dataset}, format={format}", flush=True)
     
     task = tasks.get(task_id)
     if not task:
@@ -390,45 +465,90 @@ def download(task_id, filetype):
     try:
         result = task['result']
         timestamp = result['timestamp']
+        df_kept = result['df_kept']
+        df_removed = result['df_removed']
+        title_col = result.get('title_col', 'Title')
+        abstract_col = result.get('abstract_col', 'Abstract')
+        source_col = result.get('source_col', 'Source title')
         
-        if filetype == 'cleaned':
-            data = result['cleaned']
-            print(f"   Preparing cleaned data: {len(data)} chars", flush=True)
+        # Helper function to convert df to requested format
+        def df_to_buffer(df, fmt, filename_base):
             buffer = io.BytesIO()
-            buffer.write(data.encode('utf-8-sig'))
+            
+            if fmt == 'csv':
+                csv_str = df.to_csv(index=False, encoding='utf-8')
+                buffer.write(csv_str.encode('utf-8-sig'))
+                mimetype = 'text/csv'
+                filename = f'{filename_base}.csv'
+                
+            elif fmt == 'xlsx':
+                with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                    df.to_excel(writer, index=False, sheet_name='Sheet1')
+                mimetype = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                filename = f'{filename_base}.xlsx'
+                
+            elif fmt == 'xls':
+                # Use xlwt for old Excel format
+                with pd.ExcelWriter(buffer, engine='xlwt') as writer:
+                    df.to_excel(writer, index=False, sheet_name='Sheet1')
+                mimetype = 'application/vnd.ms-excel'
+                filename = f'{filename_base}.xls'
+                
+            elif fmt == 'txt':
+                # Tab-separated text file
+                txt_str = df.to_csv(index=False, sep='\t', encoding='utf-8')
+                buffer.write(txt_str.encode('utf-8-sig'))
+                mimetype = 'text/plain'
+                filename = f'{filename_base}.txt'
+                
+            elif fmt == 'ris':
+                ris_str = df_to_ris(df, title_col, abstract_col, source_col)
+                buffer.write(ris_str.encode('utf-8'))
+                mimetype = 'application/x-research-info-systems'
+                filename = f'{filename_base}.ris'
+                
+            else:
+                raise ValueError(f"Unsupported format: {fmt}")
+            
             buffer.seek(0)
-            return send_file(buffer, as_attachment=True, 
-                            download_name=f'cleaned_data_{timestamp}.csv',
-                            mimetype='text/csv')
+            return buffer, filename, mimetype
         
-        elif filetype == 'removed':
-            data = result['removed']
-            print(f"   Preparing removed data: {len(data)} chars", flush=True)
-            buffer = io.BytesIO()
-            buffer.write(data.encode('utf-8-sig'))
-            buffer.seek(0)
-            return send_file(buffer, as_attachment=True,
-                            download_name=f'removed_data_{timestamp}.csv',
-                            mimetype='text/csv')
+        # Single file download
+        if dataset == 'cleaned':
+            buffer, filename, mimetype = df_to_buffer(df_kept, format, f'cleaned_data_{timestamp}')
+            print(f"   Preparing cleaned data: {filename}", flush=True)
+            return send_file(buffer, as_attachment=True, download_name=filename, mimetype=mimetype)
         
-        elif filetype == 'both':
-            print(f"   Preparing ZIP file", flush=True)
+        elif dataset == 'removed':
+            buffer, filename, mimetype = df_to_buffer(df_removed, format, f'removed_data_{timestamp}')
+            print(f"   Preparing removed data: {filename}", flush=True)
+            return send_file(buffer, as_attachment=True, download_name=filename, mimetype=mimetype)
+        
+        # Download both as ZIP
+        elif dataset == 'both':
+            print(f"   Preparing ZIP file with format: {format}", flush=True)
             zip_buffer = io.BytesIO()
             with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
-                zf.writestr(f'cleaned_data_{timestamp}.csv', 
-                           result['cleaned'].encode('utf-8-sig'))
-                zf.writestr(f'removed_data_{timestamp}.csv', 
-                           result['removed'].encode('utf-8-sig'))
+                # Add cleaned file
+                buffer_clean, filename_clean, _ = df_to_buffer(df_kept, format, f'cleaned_data_{timestamp}')
+                zf.writestr(filename_clean, buffer_clean.read())
+                
+                # Add removed file
+                buffer_removed, filename_removed, _ = df_to_buffer(df_removed, format, f'removed_data_{timestamp}')
+                zf.writestr(filename_removed, buffer_removed.read())
+            
             zip_buffer.seek(0)
             return send_file(zip_buffer, as_attachment=True,
                             download_name=f'screening_results_{timestamp}.zip',
                             mimetype='application/zip')
         
-        print(f"❌ Invalid filetype: {filetype}", flush=True)
-        return "Invalid file type", 400
+        print(f"❌ Invalid dataset: {dataset}", flush=True)
+        return "Invalid dataset type", 400
         
     except Exception as e:
         print(f"❌ Download Error: {e}", flush=True)
+        import traceback
+        traceback.print_exc()
         return f"Server Error: {str(e)}", 500
 
 
