@@ -132,9 +132,9 @@ def remove_duplicates(df, title_col='Title', method='doi_title'):
     df_clean = df_clean.reset_index(drop=True)
     
     dedup_info = {
-        'original_count': original_count,
-        'duplicates_removed': duplicates_removed,
-        'final_count': len(df_clean),
+        'original_count': int(original_count),
+        'duplicates_removed': int(duplicates_removed),
+        'final_count': int(len(df_clean)),
         'details': duplicate_details,
         'method': method
     }
@@ -323,8 +323,8 @@ def screen_literature_task(task_id, df, title_abstract_keywords, journal_keyword
         df['_EXCLUSION_REASON'] = ''
         
         stats = {
-            'original_total': original_total,
-            'total': len(df),
+            'original_total': int(original_total),
+            'total': int(len(df)),
             'title_col': title_col,
             'abstract_col': abstract_col,
             'source_col': source_col,
@@ -465,9 +465,13 @@ def screen_literature_task(task_id, df, title_abstract_keywords, journal_keyword
 @app.route('/')
 def index():
     """Serve the main page."""
-    return render_template('index.html',
+    response = app.make_response(render_template('index.html',
                          default_ta='\n'.join(DEFAULT_TITLE_ABSTRACT_BLACKLIST),
-                         default_journal='\n'.join(DEFAULT_JOURNAL_BLACKLIST))
+                         default_journal='\n'.join(DEFAULT_JOURNAL_BLACKLIST)))
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
 
 @app.route('/screen', methods=['POST'])
