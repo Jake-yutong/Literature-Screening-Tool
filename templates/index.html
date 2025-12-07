@@ -974,6 +974,9 @@
             screenBtn.disabled = true;
         });
 
+        // Flag to track if results have been scrolled to
+        let hasScrolledToResults = false;
+
         // Screening
         screenBtn.addEventListener('click', async () => {
             if (selectedFiles.length === 0) return;
@@ -982,6 +985,7 @@
             screenBtn.disabled = true;
             hideError();
             resultsSection.classList.remove('show');
+            hasScrolledToResults = false; // Reset flag on new screening
 
             // Reset progress text
             loading.querySelector('span').textContent = '正在初始化... Initializing...';
@@ -1112,7 +1116,12 @@
             };
 
             resultsSection.classList.add('show');
-            resultsSection.scrollIntoView({ behavior: 'smooth' });
+            
+            // Only scroll to results once when first shown
+            if (!hasScrolledToResults) {
+                resultsSection.scrollIntoView({ behavior: 'smooth' });
+                hasScrolledToResults = true;
+            }
         }
 
         function showError(message) {
