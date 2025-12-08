@@ -698,11 +698,13 @@
 
                 <div id="dedupInfo" style="display: none; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 1rem; margin-bottom: 1.5rem;">
                     <div style="display: flex; align-items: center; margin-bottom: 0.5rem;">
-                        <span style="font-weight: 500; font-size: 0.875rem;" data-i18n="dedup-title">Deduplication Applied</span>
+                        <span style="font-weight: 500; font-size: 0.875rem;" data-i18n="dedup-title">📊 Deduplication Results</span>
                     </div>
-                    <div style="font-size: 0.8125rem; color: var(--text-secondary);">
-                        <span data-i18n="dedup-removed">Duplicates removed:</span> <strong id="dedupCount">0</strong>
-                        <span style="margin-left: 1rem;">(<span id="dedupOriginal">0</span> → <span id="dedupFinal">0</span>)</span>
+                    <div style="font-size: 0.8125rem; color: var(--text-secondary); line-height: 1.6;">
+                        <div><span data-i18n="dedup-uploaded">Uploaded records:</span> <strong id="dedupOriginal">0</strong></div>
+                        <div><span data-i18n="dedup-removed">Duplicate copies removed:</span> <strong id="dedupCount" style="color: var(--warning);">0</strong></div>
+                        <div><span data-i18n="dedup-unique">Unique records kept:</span> <strong id="dedupFinal" style="color: var(--primary);">0</strong></div>
+                        <div style="margin-top: 0.5rem; padding: 0.5rem; background: var(--bg-hover); border-radius: 4px; font-size: 0.75rem;" id="dedupDetails"></div>
                     </div>
                 </div>
 
@@ -774,7 +776,7 @@
                 'label-journal-blacklist': 'Journal Exclusion Keywords',
                 'hint-keywords': 'One keyword per line',
                 'label-remove-duplicates': 'Remove duplicate records',
-                'hint-remove-duplicates': 'Automatically merge duplicate entries from different databases (based on DOI and title)',
+                'hint-remove-duplicates': 'Removes duplicate entries across files (by DOI and title). First occurrence is kept, subsequent duplicates are removed.',
                 'label-ai': 'AI-Powered Screening (Optional)',
                 'hint-api-key': 'DeepSeek API Key',
                 'hint-ai-criteria': 'Natural language exclusion criteria',
@@ -783,8 +785,10 @@
                 'col-title': 'Title Column:',
                 'col-abstract': 'Abstract Column:',
                 'col-journal': 'Journal Column:',
-                'dedup-title': 'Deduplication Applied',
-                'dedup-removed': 'Duplicates removed:',
+                'dedup-title': '📊 Deduplication Results',
+                'dedup-uploaded': 'Uploaded records:',
+                'dedup-removed': 'Duplicate copies removed:',
+                'dedup-unique': 'Unique records kept:',
                 'stat-total': 'Total Records',
                 'stat-kept': 'Retained',
                 'stat-excluded': 'Excluded',
@@ -811,7 +815,7 @@
                 'label-journal-blacklist': '期刊排除关键词',
                 'hint-keywords': '每行一个关键词',
                 'label-remove-duplicates': '去除重复记录',
-                'hint-remove-duplicates': '自动合并来自不同数据库的重复条目（基于DOI和标题）',
+                'hint-remove-duplicates': '跨文件去除重复条目（基于DOI和标题）。保留首次出现的记录，删除后续重复项。',
                 'label-ai': 'AI 智能筛选（可选）',
                 'hint-api-key': 'DeepSeek API 密钥',
                 'hint-ai-criteria': '自然语言排除标准',
@@ -820,8 +824,10 @@
                 'col-title': '标题列：',
                 'col-abstract': '摘要列：',
                 'col-journal': '期刊列：',
-                'dedup-title': '已应用去重',
-                'dedup-removed': '已移除重复：',
+                'dedup-title': '📊 去重结果',
+                'dedup-uploaded': '上传的记录数：',
+                'dedup-removed': '移除的重复副本：',
+                'dedup-unique': '保留的唯一记录：',
                 'stat-total': '总记录数',
                 'stat-kept': '保留',
                 'stat-excluded': '排除',
@@ -1082,6 +1088,14 @@
                 document.getElementById('dedupCount').textContent = stats.deduplication.duplicates_removed.toLocaleString();
                 document.getElementById('dedupOriginal').textContent = stats.deduplication.original_count.toLocaleString();
                 document.getElementById('dedupFinal').textContent = stats.deduplication.final_count.toLocaleString();
+                
+                // Show details about deduplication methods
+                const details = stats.deduplication.details || [];
+                const lang = document.documentElement.lang || 'en';
+                const detailsText = lang === 'zh' 
+                    ? `💡 说明：保留了首次出现的记录，删除了后续重复项。${details.join('; ')}`
+                    : `💡 Note: First occurrence kept, subsequent duplicates removed. ${details.join('; ')}`;
+                document.getElementById('dedupDetails').textContent = detailsText;
             } else {
                 document.getElementById('dedupInfo').style.display = 'none';
             }
