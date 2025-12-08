@@ -46,16 +46,41 @@ A Python-based tool for preliminary screening in systematic reviews, meta-analys
    - After ~3 seconds, your browser will open automatically to `http://127.0.0.1:5000`
 4. To stop: Press `Ctrl+C` in the terminal window
 
-**macOS / Linux:**
+**macOS:**
+
+*方法一：右键快捷方式（推荐）*
+1. 下载并解压此仓库到任意文件夹（如下载文件夹或桌面）
+2. 在 Finder 中找到解压后的文件夹
+3. 右键点击文件夹空白处 → 选择 **"新建位于文件夹位置的终端窗口"**
+4. 在弹出的终端窗口中输入以下命令（首次运行需要授权）：
+   ```bash
+   chmod +x start.sh && ./start.sh
+   ```
+5. 等待3秒，浏览器将自动打开 `http://127.0.0.1:5000`
+6. 停止服务：在终端按 `Ctrl+C`
+
+*方法二：手动导航（如果右键菜单没有终端选项）*
+1. 打开 **"终端"** 应用（在 应用程序 → 实用工具 中）
+2. 输入 `cd ` (cd后面有个空格)
+3. 将解压后的文件夹从 Finder 直接**拖拽**到终端窗口
+4. 按回车键，然后运行：
+   ```bash
+   chmod +x start.sh && ./start.sh
+   ```
+
+*常见问题：*
+- 如果提示 "无法打开，因为来自身份不明的开发者"：右键点击 `start.sh` → 选择 "打开" → 再次点击 "打开" 确认
+- 如果 Python 命令不存在：先安装 [Homebrew](https://brew.sh/)，然后运行 `brew install python3`
+
+**Linux:**
 1. Download and extract this repository
 2. Open Terminal and navigate to the extracted folder:
    ```bash
-   cd /path/to/Results-Sifting-Tool
+   cd ~/Downloads/Literature-Screening-Tool  # 根据实际路径调整
    ```
 3. Run the launcher script:
    ```bash
-   chmod +x start.sh
-   ./start.sh
+   chmod +x start.sh && ./start.sh
    ```
 4. Your browser will open automatically to `http://127.0.0.1:5000`
 
