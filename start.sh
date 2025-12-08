@@ -17,7 +17,4 @@ pip3 install -r requirements.txt -q
 # Start app
 echo "[2/2] 启动应用..."
 echo
-echo "✅ 请在浏览器打开: http://127.0.0.1:5000"
-echo "   按 Ctrl+C 停止服务"
-echo
 python3 app.py

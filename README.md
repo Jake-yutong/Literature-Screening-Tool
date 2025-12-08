@@ -115,7 +115,8 @@ The web interface will be available at `http://127.0.0.1:5000`.
 | "Python was not found" error | This is the Windows Store placeholder. Install real Python from python.org OR disable the placeholder in Settings → Apps → App execution aliases |
 | Browser shows "Connection Refused" | Wait 5 seconds for the server to fully start, then refresh the page |
 | Dependencies fail to install | Check your internet connection. If behind a proxy, configure pip with: `pip config set global.proxy http://your-proxy:port` |
-| Port 5000 already in use | Another application is using this port. Close it or modify `PORT` in `app.py` |
+| "Port 5000 already in use" (macOS) | **Automatic**: The tool will auto-switch to port 5001+<br>**Manual fix**: Disable AirPlay Receiver in System Settings → General → AirPlay Receiver (uncheck "Allow Handoff between this Mac and your iCloud devices") |
+| "Address already in use" error | The tool automatically finds an available port. Check the terminal output for the actual port number |
 | Excel file read errors | Ensure files are in `.xlsx`, `.xls`, or `.csv` format with UTF-8 encoding |
 
 ## Usage

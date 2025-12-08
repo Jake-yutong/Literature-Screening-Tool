@@ -792,9 +792,36 @@ def download(task_id, dataset, format):
         return f"Server Error: {str(e)}", 500
 
 
+def find_available_port(start_port=5000, max_attempts=10):
+    """找到可用的端口"""
+    import socket
+    for port in range(start_port, start_port + max_attempts):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind(('127.0.0.1', port))
+                return port
+        except OSError:
+            continue
+    return None
+
 if __name__ == '__main__':
     import os
-    port = int(os.environ.get('PORT', 5000))
+    
+    # 尝试从环境变量获取端口，否则自动查找可用端口
+    requested_port = int(os.environ.get('PORT', 5000))
+    port = find_available_port(requested_port)
+    
+    if port is None:
+        print("\n❌ 错误：无法找到可用端口")
+        print("   请检查防火墙设置或关闭其他占用端口的程序")
+        exit(1)
+    
+    if port != requested_port:
+        print(f"\n⚠️  端口 {requested_port} 已被占用")
+        print(f"   自动切换到端口 {port}")
+        if requested_port == 5000:
+            print("\n💡 提示：macOS 用户可以在 系统设置 → 通用 → 隔空播放接收器 中关闭AirPlay")
+    
     print("\n" + "=" * 50)
     print("📚 Literature Screening Web App")
     print("=" * 50)
