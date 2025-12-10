@@ -146,8 +146,22 @@ def parse_ris_file(file_content):
     """Parse RIS file content and convert to DataFrame."""
     try:
         # RIS files are text-based
-        text_content = file_content.decode('utf-8')
+        # Try multiple encodings
+        text_content = None
+        for encoding in ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252']:
+            try:
+                text_content = file_content.decode(encoding)
+                break
+            except:
+                continue
+        
+        if text_content is None:
+            raise ValueError("Could not decode file with any supported encoding")
+        
         entries = rispy.loads(text_content)
+        
+        if not entries:
+            raise ValueError("No RIS entries found in file")
         
         # Convert to DataFrame
         records = []
@@ -156,17 +170,20 @@ def parse_ris_file(file_content):
                 'Title': entry.get('title') or entry.get('primary_title', ''),
                 'Abstract': entry.get('abstract', ''),
                 'Source title': entry.get('journal_name') or entry.get('secondary_title', ''),
-                'Authors': '; '.join(entry.get('authors', [])),
-                'Year': entry.get('year', ''),
+                'Authors': '; '.join(entry.get('authors', [])) if entry.get('authors') else '',
+                'Year': str(entry.get('year', '')) if entry.get('year') else '',
                 'DOI': entry.get('doi', ''),
-                'Keywords': '; '.join(entry.get('keywords', [])),
+                'Keywords': '; '.join(entry.get('keywords', [])) if entry.get('keywords') else '',
                 'Type': entry.get('type_of_reference', ''),
                 'URL': entry.get('url', ''),
             }
             records.append(record)
         
-        return pd.DataFrame(records)
+        df = pd.DataFrame(records)
+        print(f"   RIS parser: Found {len(records)} entries, created DataFrame with {len(df)} rows", flush=True)
+        return df
     except Exception as e:
+        print(f"   RIS parser error: {str(e)}", flush=True)
         raise ValueError(f"Error parsing RIS file: {str(e)}")
 
 
@@ -583,52 +600,145 @@ def screen():
                     # WoS exports often come as tab-delimited .txt or .csv
                     content = file.read()
                     
+                    # Auto-detect RIS format in TXT files
+                    try:
+                        # Try multiple encodings to decode
+                        preview = None
+                        for enc in ['utf-8-sig', 'utf-8', 'latin-1']:
+                            try:
+                                preview = content.decode(enc, errors='ignore')[:2000]
+                                break
+                            except:
+                                continue
+                        
+                        if preview:
+                            # Remove BOM and check for RIS markers
+                            preview_clean = preview.lstrip('\ufeff').strip()
+                            # Check for RIS format indicators
+                            has_ris_start = preview_clean.startswith('TY  -') or preview_clean.startswith('TY -')
+                            has_ris_markers = 'TY  -' in preview or 'ER  -' in preview
+                            has_ris_fields = ('AB  -' in preview or 'TI  -' in preview) and 'ER  -' in preview
+                            
+                            print(f"   File format detection: has_ris_start={has_ris_start}, has_ris_markers={has_ris_markers}, has_ris_fields={has_ris_fields}", flush=True)
+                            
+                            if has_ris_start or has_ris_fields:
+                                print(f"   ✓ Detected RIS format in {filename}, parsing as RIS...", flush=True)
+                                df = parse_ris_file(content)
+                                if df is not None and len(df) > 0:
+                                    print(f"   ✓ Successfully parsed RIS file: {filename}, {len(df)} records", flush=True)
+                                    dfs.append(df)
+                                    continue
+                                else:
+                                    print(f"   ✗ RIS parsing returned empty, trying CSV...", flush=True)
+                    except Exception as e:
+                        print(f"   ✗ RIS detection/parsing failed: {str(e)[:100]}, trying CSV...", flush=True)
+                    
                     # Try different parsing strategies
                     df = None
                     parse_error = None
+                    best_df = None
+                    best_score = 0
                     
                     # Strategy 1: Tab-delimited with error handling (for WoS/Scopus exports)
-                    for encoding in ['utf-8', 'utf-8-sig', 'gbk', 'latin-1']:
+                    # Extended encoding list including Windows and Mac formats
+                    encodings_to_try = [
+                        'utf-8', 'utf-8-sig',  # Standard UTF-8
+                        'latin-1', 'iso-8859-1',  # Western European
+                        'cp1252', 'windows-1252',  # Windows Western
+                        'gbk', 'gb18030',  # Chinese
+                        'utf-16', 'utf-16-le', 'utf-16-be',  # UTF-16 variants
+                        'ascii'  # Pure ASCII fallback
+                    ]
+                    
+                    for encoding in encodings_to_try:
                         try:
-                            df = pd.read_csv(
+                            test_df = pd.read_csv(
                                 io.BytesIO(content), 
                                 sep='\t', 
                                 encoding=encoding,
                                 on_bad_lines='skip',  # Skip problematic lines
                                 engine='python',  # More flexible parser
                                 quoting=3,  # QUOTE_NONE - don't interpret quotes
-                                escapechar='\\'
+                                escapechar='\\',
+                                encoding_errors='ignore'  # Ignore encoding errors
                             )
-                            # Verify we got valid columns
-                            if len(df.columns) > 1 and ('TI' in df.columns or 'Title' in df.columns):
-                                print(f"   Parsed as tab-delimited with {encoding} encoding", flush=True)
-                                break
-                            df = None
+                            # Calculate score: prefer more columns and presence of known fields
+                            score = len(test_df.columns)
+                            if 'TI' in test_df.columns or 'Title' in test_df.columns:
+                                score += 100
+                            if 'AB' in test_df.columns or 'Abstract' in test_df.columns:
+                                score += 50
+                            if 'SO' in test_df.columns or 'Source title' in test_df.columns or 'Source Title' in test_df.columns:
+                                score += 30
+                            
+                            print(f"   Tab-delimited ({encoding}): {len(test_df)} rows, {len(test_df.columns)} cols, score={score}", flush=True)
+                            
+                            if score > best_score and len(test_df.columns) > 2:
+                                best_df = test_df
+                                best_score = score
+                                df = test_df
                         except Exception as e:
                             parse_error = str(e)
+                            # Don't print every failure, only important ones
+                            if 'utf-8' in encoding or 'latin' in encoding:
+                                print(f"   Tab-delimited ({encoding}): Failed - {str(e)[:80]}", flush=True)
                             continue
                     
-                    # Strategy 2: Comma-delimited fallback
-                    if df is None or len(df.columns) <= 1:
-                        for encoding in ['utf-8', 'utf-8-sig', 'gbk', 'latin-1']:
+                    # Strategy 2: Comma-delimited fallback (only if tab-delimited didn't work well)
+                    if best_score < 50:  # Only try comma if no good tab result
+                        for encoding in encodings_to_try:
                             try:
-                                df = pd.read_csv(
+                                test_df = pd.read_csv(
                                     io.BytesIO(content),
                                     encoding=encoding,
                                     on_bad_lines='skip',
-                                    engine='python'
+                                    engine='python',
+                                    encoding_errors='ignore'
                                 )
-                                print(f"   Parsed as comma-delimited with {encoding} encoding", flush=True)
-                                break
+                                # Calculate score
+                                score = len(test_df.columns)
+                                if 'TI' in test_df.columns or 'Title' in test_df.columns:
+                                    score += 100
+                                if 'AB' in test_df.columns or 'Abstract' in test_df.columns:
+                                    score += 50
+                                
+                                print(f"   Comma-delimited ({encoding}): {len(test_df)} rows, {len(test_df.columns)} cols, score={score}", flush=True)
+                                
+                                if score > best_score and len(test_df.columns) > 2:
+                                    best_df = test_df
+                                    best_score = score
+                                    df = test_df
                             except Exception as e:
                                 parse_error = str(e)
                                 continue
                     
-                    if df is None or len(df) == 0:
-                        error_msg = f'Could not parse file: {file.filename}'
-                        if parse_error:
-                            error_msg += f' (Last error: {parse_error})'
+                    # If still no good result, the file might have issues
+                    if df is None or len(df) == 0 or len(df.columns) <= 1:
+                        error_msg = f'无法正确解析文件: {file.filename}。'
+                        if len(df.columns) <= 1:
+                            # Show first few lines for debugging
+                            try:
+                                preview = content.decode('utf-8', errors='ignore')[:500]
+                                error_msg += f'\n\n文件似乎不是标准的CSV/TXT格式（只检测到{len(df.columns)}列）。'
+                                error_msg += f'\n\n💡 建议：'
+                                error_msg += f'\n1. 如果是从Excel导出的，请直接上传.xlsx文件'
+                                error_msg += f'\n2. 如果是WoS/Scopus导出，请确保选择"制表符分隔"格式'
+                                error_msg += f'\n3. 检查文件是否包含完整的文献数据（标题、摘要等列）'
+                                print(f"\n⚠️  File parsing issue for {file.filename}:", flush=True)
+                                print(f"   Columns detected: {len(df.columns)}", flush=True)
+                                print(f"   Rows: {len(df)}", flush=True)
+                                print(f"   First column name: {df.columns[0] if len(df.columns) > 0 else 'N/A'}", flush=True)
+                                print(f"   File preview: {preview[:200]}...", flush=True)
+                            except:
+                                pass
+                        elif parse_error:
+                            error_msg += f' (错误: {parse_error})'
                         return jsonify({'error': error_msg}), 400
+                    
+                    # Sanity check: warn if too many rows (likely parsing error)
+                    if len(df) > 50000:
+                        print(f"   ⚠️  WARNING: Parsed {len(df)} rows - this seems unusually large!", flush=True)
+                        print(f"   File might be improperly formatted. Columns found: {list(df.columns[:10])}", flush=True)
                 else:
                     return jsonify({'error': f'Unsupported file format: {file.filename}'}), 400
                 
