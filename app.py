@@ -582,21 +582,53 @@ def screen():
                 elif filename.endswith('.csv') or filename.endswith('.txt'):
                     # WoS exports often come as tab-delimited .txt or .csv
                     content = file.read()
-                    # Try tab separator first for .txt or potential WoS files
-                    try:
-                        df = pd.read_csv(io.BytesIO(content), sep='\t', encoding='utf-8', on_bad_lines='skip')
-                        if 'TI' not in df.columns and 'Title' not in df.columns:
-                            # Fallback to comma
-                            raise ValueError("Not tab delimited")
-                    except:
+                    
+                    # Try different parsing strategies
+                    df = None
+                    parse_error = None
+                    
+                    # Strategy 1: Tab-delimited with error handling (for WoS/Scopus exports)
+                    for encoding in ['utf-8', 'utf-8-sig', 'gbk', 'latin-1']:
+                        try:
+                            df = pd.read_csv(
+                                io.BytesIO(content), 
+                                sep='\t', 
+                                encoding=encoding,
+                                on_bad_lines='skip',  # Skip problematic lines
+                                engine='python',  # More flexible parser
+                                quoting=3,  # QUOTE_NONE - don't interpret quotes
+                                escapechar='\\'
+                            )
+                            # Verify we got valid columns
+                            if len(df.columns) > 1 and ('TI' in df.columns or 'Title' in df.columns):
+                                print(f"   Parsed as tab-delimited with {encoding} encoding", flush=True)
+                                break
+                            df = None
+                        except Exception as e:
+                            parse_error = str(e)
+                            continue
+                    
+                    # Strategy 2: Comma-delimited fallback
+                    if df is None or len(df.columns) <= 1:
                         for encoding in ['utf-8', 'utf-8-sig', 'gbk', 'latin-1']:
                             try:
-                                df = pd.read_csv(io.BytesIO(content), encoding=encoding)
+                                df = pd.read_csv(
+                                    io.BytesIO(content),
+                                    encoding=encoding,
+                                    on_bad_lines='skip',
+                                    engine='python'
+                                )
+                                print(f"   Parsed as comma-delimited with {encoding} encoding", flush=True)
                                 break
-                            except UnicodeDecodeError:
+                            except Exception as e:
+                                parse_error = str(e)
                                 continue
-                        else:
-                            return jsonify({'error': f'Could not decode file: {file.filename}'}), 400
+                    
+                    if df is None or len(df) == 0:
+                        error_msg = f'Could not parse file: {file.filename}'
+                        if parse_error:
+                            error_msg += f' (Last error: {parse_error})'
+                        return jsonify({'error': error_msg}), 400
                 else:
                     return jsonify({'error': f'Unsupported file format: {file.filename}'}), 400
                 
