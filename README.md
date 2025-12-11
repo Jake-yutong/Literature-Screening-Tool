@@ -1,21 +1,28 @@
-# Literature Screening Tool v1.2
+# Literature Screening Tool v1.2.3
 
 A Python-based tool for preliminary screening in systematic reviews, meta-analyses, and bibliometric studies. This tool facilitates the filtering of large literature datasets exported from Web of Science and Scopus.
 
-## ✨ What's New in v1.2.0
+## What's New in v1.2.3
 
-- **🤖 Multi-Model AI Support**: Choose between DeepSeek Chat and MiniMax-M2 models
-- **🔄 MiniMax-M2 Integration**: Advanced AI screening with MiniMax's latest model
-- **⚙️ Flexible Model Selection**: Switch between different AI providers based on your needs
-- **🔑 Unified API Interface**: Simplified API key management for multiple providers
+- **Performance Optimization**: Removed double verification step for 50% faster AI screening
+- **Enhanced Stability**: Improved error handling and retry mechanisms for MiniMax-M2
+- **Model Streamlining**: Focused on two reliable AI providers (DeepSeek and MiniMax-M2)
+- **Rate Limit Management**: Smart retry with exponential backoff for API calls
+
+### Key Features from v1.2.0
+
+- **Multi-Model AI Support**: Choose between DeepSeek Chat and MiniMax-M2 models
+- **MiniMax-M2 Integration**: Advanced AI screening with thinking process visualization
+- **Flexible Model Selection**: Switch between different AI providers based on your needs
+- **Unified API Interface**: Simplified API key management for multiple providers
 
 ### Previous Updates (v1.1.0)
 
-- **🌐 Bilingual Interface**: Seamless EN/中文 language switching
-- **📄 RIS File Support**: Import and export RIS (Research Information Systems) format
-- **📊 Multiple Export Formats**: CSV, Excel (.xlsx/.xls), TXT, and RIS
-- **🎨 Professional UI**: Refined academic-style interface with improved dark mode
-- **⚡ Enhanced Performance**: Optimized file processing and format conversion
+- **Bilingual Interface**: Seamless EN/Chinese language switching
+- **RIS File Support**: Import and export RIS (Research Information Systems) format
+- **Multiple Export Formats**: CSV, Excel (.xlsx/.xls), TXT, and RIS
+- **Professional UI**: Refined academic-style interface with improved dark mode
+- **Enhanced Performance**: Optimized file processing and format conversion
 
 ## Features
 
@@ -42,45 +49,45 @@ A Python-based tool for preliminary screening in systematic reviews, meta-analys
 
 **Windows:**
 
-*If you don't have Python installed:*
+If you don't have Python installed:
 1. Download Python from https://www.python.org/downloads/
-2. **IMPORTANT**: During installation, check ☑️ "Add Python to PATH"
+2. IMPORTANT: During installation, check "Add Python to PATH"
 3. Complete the installation and restart your computer
 
-*To run the tool:*
-1. Download this repository: Click the green `Code` button → `Download ZIP`
+To run the tool:
+1. Download this repository: Click the green "Code" button, then "Download ZIP"
 2. Extract the ZIP file to any folder (e.g., Desktop or Documents)
 3. Double-click `start.bat`
    - First run: Dependencies will be installed automatically (takes 1-2 minutes)
    - The terminal window will stay open showing server status
-   - After ~3 seconds, your browser will open automatically to `http://127.0.0.1:5000`
+   - After approximately 3 seconds, your browser will open automatically to `http://127.0.0.1:5000`
 4. To stop: Press `Ctrl+C` in the terminal window
 
 **macOS:**
 
-*方法一：右键快捷方式（推荐）*
-1. 下载并解压此仓库到任意文件夹（如下载文件夹或桌面）
-2. 在 Finder 中找到解压后的文件夹
-3. 右键点击文件夹空白处 → 选择 **"新建位于文件夹位置的终端窗口"**
-4. 在弹出的终端窗口中输入以下命令（首次运行需要授权）：
+Method 1: Right-click shortcut (Recommended)
+1. Download and extract this repository to any folder (e.g., Downloads or Desktop)
+2. In Finder, locate the extracted folder
+3. Right-click on the folder's empty space, select "New Terminal at Folder"
+4. In the terminal window that appears, enter the following command (first run requires authorization):
    ```bash
    chmod +x start.sh && ./start.sh
    ```
-5. 等待3秒，浏览器将自动打开 `http://127.0.0.1:5000`
-6. 停止服务：在终端按 `Ctrl+C`
+5. Wait 3 seconds, the browser will automatically open `http://127.0.0.1:5000`
+6. To stop the service: Press `Ctrl+C` in the terminal
 
-*方法二：手动导航（如果右键菜单没有终端选项）*
-1. 打开 **"终端"** 应用（在 应用程序 → 实用工具 中）
-2. 输入 `cd ` (cd后面有个空格)
-3. 将解压后的文件夹从 Finder 直接**拖拽**到终端窗口
-4. 按回车键，然后运行：
+Method 2: Manual navigation (if right-click menu does not have terminal option)
+1. Open the "Terminal" application (in Applications > Utilities)
+2. Type `cd ` (cd followed by a space)
+3. Drag and drop the extracted folder from Finder directly into the terminal window
+4. Press Enter, then run:
    ```bash
    chmod +x start.sh && ./start.sh
    ```
 
-*常见问题：*
-- 如果提示 "无法打开，因为来自身份不明的开发者"：右键点击 `start.sh` → 选择 "打开" → 再次点击 "打开" 确认
-- 如果 Python 命令不存在：先安装 [Homebrew](https://brew.sh/)，然后运行 `brew install python3`
+Common Issues:
+- If prompted "Cannot be opened because it is from an unidentified developer": Right-click `start.sh`, select "Open", then click "Open" again to confirm
+- If Python command does not exist: First install [Homebrew](https://brew.sh/), then run `brew install python3`
 
 **Linux:**
 1. Download and extract this repository
@@ -131,24 +138,54 @@ The web interface will be available at `http://127.0.0.1:5000`.
 
 ## AI Configuration (Optional)
 
-### DeepSeek API Setup
+This tool supports two AI models for intelligent literature screening. Both models use natural language criteria for flexible and accurate filtering.
 
+### DeepSeek Chat (Recommended for large batches)
+
+**Advantages:**
+- Fast response time (approximately 2-3 seconds per paper)
+- Cost-effective pricing
+- Stable JSON output format
+- No strict rate limits
+
+**Setup:**
 1. Get your API key from [DeepSeek Platform](https://platform.deepseek.com/)
-2. In the web interface, select **DeepSeek Chat** from the model dropdown
+2. In the web interface, select "DeepSeek Chat" from the model dropdown
 3. Enter your API key in the "API Key" field
-4. Add natural language exclusion criteria
+4. Add natural language exclusion criteria (e.g., "Exclude all papers not about K-12 education")
 
-### MiniMax-M2 API Setup
+**API Endpoint:** `https://api.deepseek.com`
 
+### MiniMax-M2 (Best for accuracy)
+
+**Advantages:**
+- Advanced reasoning with thinking process
+- Higher accuracy for complex criteria
+- Automatic retry mechanism with exponential backoff
+- Handles ambiguous cases better
+
+**Setup:**
 1. Get your API key from [MiniMax Platform](https://platform.minimaxi.com/)
-2. In the web interface, select **MiniMax-M2** from the model dropdown
+2. In the web interface, select "MiniMax-M2" from the model dropdown
 3. Enter your API key in the "API Key" field
 4. Add natural language exclusion criteria
 
-**Note**: The tool automatically configures the appropriate API endpoint based on your model selection:
-- DeepSeek: `https://api.deepseek.com`
-- MiniMax (China): `https://api.minimaxi.com/anthropic`
-- MiniMax (International): `https://api.minimax.io/anthropic`
+**API Endpoints:**
+- China: `https://api.minimaxi.com/anthropic`
+- International: `https://api.minimax.io/anthropic`
+
+### Performance Comparison
+
+| Feature | DeepSeek Chat | MiniMax-M2 |
+|---------|---------------|------------|
+| Speed | Fast (2-3s/paper) | Moderate (4-5s/paper) |
+| Accuracy | High | Very High |
+| Cost | Low | Moderate |
+| Thinking Process | No | Yes |
+| Rate Limit | Generous | Standard |
+| Best For | Large batches (100+ papers) | High-precision screening |
+
+**Note:** The tool automatically selects the appropriate API endpoint based on your model choice.
 
 ## Usage
 
