@@ -1,8 +1,15 @@
-# Literature Screening Tool
+# Literature Screening Tool v1.2
 
 A Python-based tool for preliminary screening in systematic reviews, meta-analyses, and bibliometric studies. This tool facilitates the filtering of large literature datasets exported from Web of Science and Scopus.
 
-## ✨ What's New in v1.1.0
+## ✨ What's New in v1.2.0
+
+- **🤖 Multi-Model AI Support**: Choose between DeepSeek Chat and MiniMax-M2 models
+- **🔄 MiniMax-M2 Integration**: Advanced AI screening with MiniMax's latest model
+- **⚙️ Flexible Model Selection**: Switch between different AI providers based on your needs
+- **🔑 Unified API Interface**: Simplified API key management for multiple providers
+
+### Previous Updates (v1.1.0)
 
 - **🌐 Bilingual Interface**: Seamless EN/中文 language switching
 - **📄 RIS File Support**: Import and export RIS (Research Information Systems) format
@@ -15,7 +22,10 @@ A Python-based tool for preliminary screening in systematic reviews, meta-analys
 - **Batch processing**: Supports multiple file uploads (.xlsx, .xls, .csv, .ris, .txt)
 - **Format standardization**: Automatically converts Web of Science export format to Scopus-compatible format for VOSviewer
 - **Keyword-based exclusion**: Filter records by title, abstract, or journal name
-- **LLM-assisted screening** (optional): Integration with DeepSeek API for natural language-based filtering criteria
+- **Multi-Model AI Screening** (optional): 
+  - **DeepSeek Chat**: Fast and cost-effective AI-powered screening
+  - **MiniMax-M2**: Advanced reasoning with thinking process visualization
+  - Natural language-based filtering criteria for both models
 - **Flexible export options**: Download results in CSV, Excel, TXT, or RIS format
 - **Structured output**:
   - Retained records for downstream analysis
@@ -119,12 +129,34 @@ The web interface will be available at `http://127.0.0.1:5000`.
 | "Address already in use" error | The tool automatically finds an available port. Check the terminal output for the actual port number |
 | Excel file read errors | Ensure files are in `.xlsx`, `.xls`, or `.csv` format with UTF-8 encoding |
 
+## AI Configuration (Optional)
+
+### DeepSeek API Setup
+
+1. Get your API key from [DeepSeek Platform](https://platform.deepseek.com/)
+2. In the web interface, select **DeepSeek Chat** from the model dropdown
+3. Enter your API key in the "API Key" field
+4. Add natural language exclusion criteria
+
+### MiniMax-M2 API Setup
+
+1. Get your API key from [MiniMax Platform](https://platform.minimaxi.com/)
+2. In the web interface, select **MiniMax-M2** from the model dropdown
+3. Enter your API key in the "API Key" field
+4. Add natural language exclusion criteria
+
+**Note**: The tool automatically configures the appropriate API endpoint based on your model selection:
+- DeepSeek: `https://api.deepseek.com`
+- MiniMax (China): `https://api.minimaxi.com/anthropic`
+- MiniMax (International): `https://api.minimax.io/anthropic`
+
 ## Usage
 
 1. **Upload** literature export files (Web of Science or Scopus format)
 2. **Configure** exclusion keywords for title/abstract and journal name fields
-3. **Run** the screening process
-4. **Download** results:
+3. **(Optional)** Select AI model and provide API key for intelligent screening
+4. **Run** the screening process
+5. **Download** results:
    - `cleaned_data.csv` for bibliometric analysis (e.g., VOSviewer)
    - `removed_data.csv` for PRISMA flow diagram documentation
 
@@ -136,7 +168,8 @@ The web interface will be available at `http://127.0.0.1:5000`.
 | Pandas | Data manipulation |
 | OpenPyXL | Excel file handling |
 | xlrd | Legacy Excel format support |
-| openai | LLM API integration (optional) |
+| openai | DeepSeek API integration (optional) |
+| anthropic | MiniMax-M2 API integration (optional) |
 | gunicorn | Production server |
 
 ## File Structure

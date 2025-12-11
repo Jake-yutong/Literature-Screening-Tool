@@ -2,6 +2,42 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2025-12-11
+
+### Added
+- **Multi-Model AI Support**: Choose between different AI providers for screening
+  - DeepSeek Chat (OpenAI SDK)
+  - MiniMax-M2 (Anthropic SDK)
+- **Model Selection Interface**: Dropdown menu to switch between AI models
+- **MiniMax-M2 Integration**:
+  - Advanced reasoning with thinking process
+  - Anthropic SDK implementation
+  - Automatic API endpoint configuration (China/International)
+  - Full support for multi-turn conversations with complete message history
+- **Enhanced API Management**: 
+  - Unified API key input for all models
+  - Automatic base URL configuration per model
+  - Environment variable handling for MiniMax
+
+### Changed
+- Updated application version to 1.2.0
+- Improved AI screening logic to support multiple model backends
+- Enhanced error handling for different AI providers
+- Updated UI labels to be model-agnostic (changed "DeepSeek API Key" to "API Key")
+
+### Technical Improvements
+- Added `anthropic` SDK dependency (v0.75.0)
+- Implemented model-specific API call routing
+- Added kwargs support in screening thread for model selection
+- Updated verification logic for both OpenAI and Anthropic SDKs
+- Maintained backward compatibility with existing DeepSeek implementation
+
+### Documentation
+- Updated README with AI configuration sections for both models
+- Added MiniMax-M2 setup instructions
+- Updated dependency table with anthropic package
+- Enhanced usage instructions with model selection steps
+
 ## [1.1.0] - 2025-12-07
 
 ### Added

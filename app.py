@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Literature Screening Web App - Flask Backend
-文献筛选网页应用 - Flask 后端
+Literature Screening Web App - Flask Backend v1.2
+文献筛选网页应用 - Flask 后端 v1.2
+
+Version 1.2: Added MiniMax-M2 model support with multi-model selection
 """
 
 from flask import Flask, render_template, request, jsonify, send_file
@@ -21,6 +23,9 @@ from bibtexparser.bibdatabase import BibDatabase
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
+
+# Version
+VERSION = "1.2.0"
 
 # Default blacklists
 DEFAULT_TITLE_ABSTRACT_BLACKLIST = [
@@ -387,11 +392,32 @@ def screen_literature_task(task_id, df, title_abstract_keywords, journal_keyword
         # --- Step 2: AI Screening (Optional) ---
         if api_key and ai_criteria:
             try:
-                from openai import OpenAI
                 import json
                 
                 tasks[task_id]['message'] = 'Connecting to AI...'
-                client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+                
+                # Determine which AI model to use
+                ai_model = kwargs.get('ai_model', 'deepseek')  # Default to deepseek
+                
+                if ai_model == 'minimax':
+                    # Use MiniMax-M2 with Anthropic SDK
+                    import anthropic
+                    import os
+                    
+                    # Set base URL for MiniMax
+                    os.environ['ANTHROPIC_BASE_URL'] = 'https://api.minimaxi.com/anthropic'
+                    os.environ['ANTHROPIC_API_KEY'] = api_key
+                    
+                    client = anthropic.Anthropic()
+                    model_name = "MiniMax-M2"
+                    print(f"🤖 Using MiniMax-M2 model via Anthropic SDK", flush=True)
+                else:
+                    # Use DeepSeek with OpenAI SDK (default)
+                    from openai import OpenAI
+                    
+                    client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+                    model_name = "deepseek-chat"
+                    print(f"🤖 Using DeepSeek model", flush=True)
                 
                 # Only screen papers that passed the keyword filter
                 candidates = df[df['_EXCLUDED'] == False]
@@ -440,17 +466,45 @@ OUTPUT FORMAT (JSON only):
 IMPORTANT: When in doubt, EXCLUDE the paper. Be conservative and strict."""
                     
                     try:
-                        response = client.chat.completions.create(
-                            model="deepseek-chat",
-                            messages=[
-                                {"role": "system", "content": "You are a strict academic paper screening assistant. You apply exclusion criteria rigorously and conservatively. When uncertain, you exclude papers. You only output valid JSON format."},
-                                {"role": "user", "content": prompt}
-                            ],
-                            response_format={"type": "json_object"},
-                            temperature=0.0
-                        )
-                        
-                        result = json.loads(response.choices[0].message.content)
+                        if ai_model == 'minimax':
+                            # MiniMax-M2 API call with Anthropic SDK
+                            response = client.messages.create(
+                                model="MiniMax-M2",
+                                max_tokens=1000,
+                                system="You are a strict academic paper screening assistant. You apply exclusion criteria rigorously and conservatively. When uncertain, you exclude papers. You only output valid JSON format.",
+                                messages=[
+                                    {
+                                        "role": "user",
+                                        "content": [
+                                            {
+                                                "type": "text",
+                                                "text": prompt
+                                            }
+                                        ]
+                                    }
+                                ]
+                            )
+                            
+                            # Extract text from response blocks
+                            result_text = ""
+                            for block in response.content:
+                                if block.type == "text":
+                                    result_text += block.text
+                            
+                            result = json.loads(result_text)
+                        else:
+                            # DeepSeek API call with OpenAI SDK
+                            response = client.chat.completions.create(
+                                model="deepseek-chat",
+                                messages=[
+                                    {"role": "system", "content": "You are a strict academic paper screening assistant. You apply exclusion criteria rigorously and conservatively. When uncertain, you exclude papers. You only output valid JSON format."},
+                                    {"role": "user", "content": prompt}
+                                ],
+                                response_format={"type": "json_object"},
+                                temperature=0.0
+                            )
+                            
+                            result = json.loads(response.choices[0].message.content)
                         
                         if result.get('exclude', False):
                             df.at[idx, '_EXCLUDED'] = True
@@ -469,17 +523,44 @@ Answer in JSON: {{"is_education": true/false, "confidence": "high/medium/low"}}
 If this is mainly about: robotics, engineering, medicine, sports, computer science, chemistry, physics, or other non-education fields → is_education=false
 Only return is_education=true if the paper is CLEARLY about teaching, learning, educational interventions, or K-12 education."""
 
-                            verify_response = client.chat.completions.create(
-                                model="deepseek-chat",
-                                messages=[
-                                    {"role": "system", "content": "You verify if papers are truly education-focused. Be strict."},
-                                    {"role": "user", "content": verify_prompt}
-                                ],
-                                response_format={"type": "json_object"},
-                                temperature=0.0
-                            )
-                            
-                            verify_result = json.loads(verify_response.choices[0].message.content)
+                            if ai_model == 'minimax':
+                                # MiniMax-M2 verification
+                                verify_response = client.messages.create(
+                                    model="MiniMax-M2",
+                                    max_tokens=500,
+                                    system="You verify if papers are truly education-focused. Be strict.",
+                                    messages=[
+                                        {
+                                            "role": "user",
+                                            "content": [
+                                                {
+                                                    "type": "text",
+                                                    "text": verify_prompt
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                )
+                                
+                                verify_text = ""
+                                for block in verify_response.content:
+                                    if block.type == "text":
+                                        verify_text += block.text
+                                
+                                verify_result = json.loads(verify_text)
+                            else:
+                                # DeepSeek verification
+                                verify_response = client.chat.completions.create(
+                                    model="deepseek-chat",
+                                    messages=[
+                                        {"role": "system", "content": "You verify if papers are truly education-focused. Be strict."},
+                                        {"role": "user", "content": verify_prompt}
+                                    ],
+                                    response_format={"type": "json_object"},
+                                    temperature=0.0
+                                )
+                                
+                                verify_result = json.loads(verify_response.choices[0].message.content)
                             
                             if not verify_result.get('is_education', True):
                                 df.at[idx, '_EXCLUDED'] = True
@@ -557,6 +638,7 @@ def screen():
         journal_keywords = request.form.get('journal_keywords', '')
         api_key = request.form.get('api_key', '').strip()
         ai_criteria = request.form.get('ai_criteria', '').strip()
+        ai_model = request.form.get('ai_model', 'deepseek').strip()  # Get selected model
         
         # Read and merge files
         dfs = []
@@ -787,7 +869,8 @@ def screen():
         
         # Start background thread
         thread = threading.Thread(target=screen_literature_task, 
-                                args=(task_id, df, ta_keywords, journal_keywords, api_key, ai_criteria, remove_duplicates_flag))
+                                args=(task_id, df, ta_keywords, journal_keywords, api_key, ai_criteria, remove_duplicates_flag),
+                                kwargs={'ai_model': ai_model})
         thread.daemon = True
         thread.start()
         

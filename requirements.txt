@@ -6,4 +6,5 @@ xlwt
 rispy
 bibtexparser
 openai
+anthropic
 gunicorn

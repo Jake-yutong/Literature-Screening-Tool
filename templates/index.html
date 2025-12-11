@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Literature Screening Tool | 文献筛选工具</title>
+    <title>Literature Screening Tool v1.2 | 文献筛选工具 v1.2</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -574,7 +574,7 @@
     <!-- Top Navigation Bar -->
     <div class="top-bar">
         <div class="top-bar-content">
-            <div class="logo" data-i18n="app-title">Literature Screening Tool</div>
+            <div class="logo" data-i18n="app-title">Literature Screening Tool v1.2</div>
             <div class="controls">
                 <button class="btn-control" id="langToggle" title="Switch Language / 切换语言">
                     <span id="langIcon">🌐</span>
@@ -663,8 +663,15 @@
 
                 <div class="keyword-section">
                     <label data-i18n="label-ai">AI-Powered Screening (Optional)</label>
-                    <p class="hint" data-i18n="hint-api-key">DeepSeek API Key</p>
-                    <input type="password" id="apiKey" class="form-input" placeholder="sk-...">
+                    
+                    <p class="hint" data-i18n="hint-ai-model" style="margin-bottom: 0.5rem;">Select AI Model</p>
+                    <select id="aiModel" class="form-input" style="margin-bottom: 1rem;">
+                        <option value="deepseek" data-i18n="model-deepseek">DeepSeek Chat</option>
+                        <option value="minimax" data-i18n="model-minimax">MiniMax-M2</option>
+                    </select>
+                    
+                    <p class="hint" data-i18n="hint-api-key">API Key</p>
+                    <input type="password" id="apiKey" class="form-input" placeholder="sk-..." data-i18n-placeholder="placeholder-api-key">
 
                     <p class="hint" data-i18n="hint-ai-criteria" style="margin-top: 1rem;">Natural language exclusion criteria</p>
                     <textarea id="aiCriteria" style="min-height: 100px;"
@@ -778,7 +785,11 @@
                 'label-remove-duplicates': 'Remove duplicate records',
                 'hint-remove-duplicates': 'Removes duplicate entries across files (by DOI and title). First occurrence is kept, subsequent duplicates are removed.',
                 'label-ai': 'AI-Powered Screening (Optional)',
-                'hint-api-key': 'DeepSeek API Key',
+                'hint-ai-model': 'Select AI Model',
+                'model-deepseek': 'DeepSeek Chat',
+                'model-minimax': 'MiniMax-M2',
+                'hint-api-key': 'API Key (DeepSeek or MiniMax)',
+                'placeholder-api-key': 'sk-...',
                 'hint-ai-criteria': 'Natural language exclusion criteria',
                 'placeholder-ai': 'e.g., Exclude all non-AI-driven gamification studies...',
                 'results-title': 'Screening Results',
@@ -817,7 +828,11 @@
                 'label-remove-duplicates': '去除重复记录',
                 'hint-remove-duplicates': '跨文件去除重复条目（基于DOI和标题）。保留首次出现的记录，删除后续重复项。',
                 'label-ai': 'AI 智能筛选（可选）',
-                'hint-api-key': 'DeepSeek API 密钥',
+                'hint-ai-model': '选择 AI 模型',
+                'model-deepseek': 'DeepSeek Chat',
+                'model-minimax': 'MiniMax-M2',
+                'hint-api-key': 'API 密钥（DeepSeek 或 MiniMax）',
+                'placeholder-api-key': 'sk-...',
                 'hint-ai-criteria': '自然语言排除标准',
                 'placeholder-ai': '例如：排除所有非人工智能驱动的游戏化研究...',
                 'results-title': '筛选结果',
@@ -1004,6 +1019,7 @@
 
             formData.append('ta_keywords', document.getElementById('taKeywords').value);
             formData.append('journal_keywords', document.getElementById('journalKeywords').value);
+            formData.append('ai_model', document.getElementById('aiModel').value);
             formData.append('api_key', document.getElementById('apiKey').value);
             formData.append('ai_criteria', document.getElementById('aiCriteria').value);
             formData.append('remove_duplicates', document.getElementById('removeDuplicates').checked.toString());
