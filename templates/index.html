@@ -345,6 +345,25 @@
             box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
         }
 
+        /* AI Model Select with Icons */
+        #aiModel {
+            padding-left: 2.5rem;
+            padding-right: 2.5rem;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            cursor: pointer;
+            background-repeat: no-repeat;
+            /* Logo + dropdown arrow */
+            background-image: url('/static/images/deepseek-ai-icon-seeklogo.png'), 
+                            linear-gradient(45deg, transparent 50%, var(--text-secondary) 50%),
+                            linear-gradient(135deg, var(--text-secondary) 50%, transparent 50%);
+            background-position: 0.625rem center, 
+                               calc(100% - 1rem) calc(50% - 2px), 
+                               calc(100% - 0.75rem) calc(50% - 2px);
+            background-size: 1rem 1rem, 5px 5px, 5px 5px;
+        }
+
         .keyword-section {
             margin-bottom: 1rem;
         }
@@ -925,10 +944,27 @@
         const loading = document.getElementById('loading');
         const errorAlert = document.getElementById('errorAlert');
         const resultsSection = document.getElementById('resultsSection');
+        const aiModelSelect = document.getElementById('aiModel');
 
         let selectedFiles = [];
         let currentTaskId = null;
         let pollInterval = null;
+
+        // AI Model Select Icon Change
+        function updateModelIcon() {
+            const selectedModel = aiModelSelect.value;
+            if (selectedModel === 'deepseek') {
+                aiModelSelect.style.backgroundImage = "url('/static/images/deepseek-ai-icon-seeklogo.png'), linear-gradient(45deg, transparent 50%, var(--text-secondary) 50%), linear-gradient(135deg, var(--text-secondary) 50%, transparent 50%)";
+            } else if (selectedModel === 'minimax') {
+                aiModelSelect.style.backgroundImage = "url('/static/images/minimax-color.png'), linear-gradient(45deg, transparent 50%, var(--text-secondary) 50%), linear-gradient(135deg, var(--text-secondary) 50%, transparent 50%)";
+            }
+        }
+
+        // Initialize icon on page load
+        updateModelIcon();
+
+        // Update icon when model changes
+        aiModelSelect.addEventListener('change', updateModelIcon);
 
         // File upload handling
         uploadZone.addEventListener('click', () => fileInput.click());
