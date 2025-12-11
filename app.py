@@ -25,7 +25,7 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 
 # Version
-VERSION = "1.2.0"
+VERSION = "1.2.2"
 
 # Default blacklists
 DEFAULT_TITLE_ABSTRACT_BLACKLIST = [
