@@ -25,7 +25,7 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 
 # Version
-VERSION = "1.2.2"
+VERSION = "1.3.0"
 
 # Default blacklists
 DEFAULT_TITLE_ABSTRACT_BLACKLIST = [
@@ -411,6 +411,17 @@ def screen_literature_task(task_id, df, title_abstract_keywords, journal_keyword
                     client = anthropic.Anthropic()
                     model_name = "MiniMax-M2"
                     print(f"🤖 Using MiniMax-M2 model via Anthropic SDK", flush=True)
+                elif ai_model == 'gemini':
+                    # Use Gemini 2.5 Flash with Google GenAI SDK
+                    from google import genai
+                    import os
+                    
+                    # Set API key for Gemini
+                    os.environ['GEMINI_API_KEY'] = api_key
+                    
+                    client = genai.Client()
+                    model_name = "gemini-2.5-flash"
+                    print(f"🤖 Using Gemini 2.5 Flash model via Google GenAI SDK", flush=True)
                 else:
                     # Use DeepSeek with OpenAI SDK (default)
                     from openai import OpenAI
@@ -501,6 +512,25 @@ JSON format:
                                 raise ValueError("MiniMax-M2 failed to return valid response after retries")
                             
                             # Now we have a valid result
+                        elif ai_model == 'gemini':
+                            # Gemini API call with Google GenAI SDK
+                            system_instruction = "You are a paper screening assistant. Output ONLY valid JSON: {\"exclude\": true/false, \"reason\": \"text\"}. Be concise."
+                            full_prompt = f"{system_instruction}\n\n{prompt}"
+                            
+                            response = client.models.generate_content(
+                                model="gemini-2.5-flash",
+                                contents=full_prompt
+                            )
+                            
+                            # Extract and parse JSON from response
+                            result_text = response.text.strip()
+                            # Remove markdown code blocks if present
+                            if result_text.startswith('```'):
+                                lines = result_text.split('\n')
+                                result_text = '\n'.join(lines[1:-1]) if len(lines) > 2 else result_text
+                                result_text = result_text.replace('```json', '').replace('```', '').strip()
+                            
+                            result = json.loads(result_text)
                         else:
                             # DeepSeek API call with OpenAI SDK
                             response = client.chat.completions.create(
