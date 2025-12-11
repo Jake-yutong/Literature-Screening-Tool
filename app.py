@@ -434,70 +434,79 @@ def screen_literature_task(task_id, df, title_abstract_keywords, journal_keyword
                     title = row[title_col] if title_col else "N/A"
                     abstract = row[abstract_col] if abstract_col else "N/A"
                     
-                    prompt = f"""You are a rigorous research screening assistant. Your task is to determine if this paper should be EXCLUDED based on the following criteria:
+                    prompt = f"""Screen this paper against exclusion criteria. Return JSON only.
 
 EXCLUSION CRITERIA:
 {ai_criteria}
 
-PAPER TO EVALUATE:
+PAPER:
 Title: {title}
 Abstract: {abstract}
 
-SCREENING INSTRUCTIONS:
-1. Read the title and abstract carefully
-2. Determine if the paper's PRIMARY focus matches the exclusion criteria
-3. Be STRICT: if there's any doubt about whether it should be excluded, mark exclude=true
-4. Common exclusion examples:
-   - Papers about robot design/engineering without educational focus → EXCLUDE
-   - Papers about technical systems/simulations not for education → EXCLUDE
-   - Papers about medical/clinical applications → EXCLUDE
-   - Papers about sports/athletics → EXCLUDE
-   - Papers about pure computer science/AI without teaching context → EXCLUDE
+RULES:
+- If paper matches exclusion criteria → exclude=true
+- If uncertain → exclude=true (be strict)
+- Reason must be ≤12 words
 
-5. Only KEEP papers that are clearly about:
-   - Education pedagogy, teaching methods, or learning outcomes
-   - K-12 education, classroom interventions, or student learning
-   - Educational technology used IN teaching contexts
-   - Teacher training or educational policy
-
-OUTPUT FORMAT (JSON only):
-{{"exclude": true/false, "reason": "brief explanation (max 15 words)"}}
-
-IMPORTANT: When in doubt, EXCLUDE the paper. Be conservative and strict."""
+JSON format:
+{{"exclude": true/false, "reason": "brief reason"}}"""
                     
                     try:
                         if ai_model == 'minimax':
-                            # MiniMax-M2 API call with Anthropic SDK
-                            response = client.messages.create(
-                                model="MiniMax-M2",
-                                max_tokens=1000,
-                                system="You are a strict academic paper screening assistant. You apply exclusion criteria rigorously and conservatively. When uncertain, you exclude papers. You only output valid JSON format.",
-                                messages=[
-                                    {
-                                        "role": "user",
-                                        "content": [
-                                            {
-                                                "type": "text",
-                                                "text": prompt
-                                            }
-                                        ]
-                                    }
-                                ]
-                            )
+                            # MiniMax-M2 API call with retry mechanism
+                            max_retries = 2
+                            result = None
                             
-                            # Extract text from response blocks
-                            result_text = ""
-                            for block in response.content:
-                                if block.type == "text":
-                                    result_text += block.text
+                            for attempt in range(max_retries):
+                                response = client.messages.create(
+                                    model="MiniMax-M2",
+                                    max_tokens=2000,  # Increased to prevent thinking truncation
+                                    system="You are a paper screening assistant. Output ONLY valid JSON: {\"exclude\": true/false, \"reason\": \"text\"}. Be concise.",
+                                    messages=[
+                                        {
+                                            "role": "user",
+                                            "content": [
+                                                {
+                                                    "type": "text",
+                                                    "text": prompt
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                )
+                                
+                                # Extract text from response blocks (skip 'thinking' blocks)
+                                result_text = ""
+                                for block in response.content:
+                                    if block.type == "text":
+                                        result_text += block.text
+                                
+                                # If we got text content, parse it and break
+                                if result_text.strip():
+                                    try:
+                                        result = json.loads(result_text)
+                                        break
+                                    except json.JSONDecodeError as je:
+                                        if attempt < max_retries - 1:
+                                            print(f"   ⚠️ JSON parse error (attempt {attempt+1}/{max_retries}), retrying...", flush=True)
+                                            continue
+                                        else:
+                                            raise je
+                                elif attempt < max_retries - 1:
+                                    print(f"   ⚠️ Empty response (attempt {attempt+1}/{max_retries}), retrying...", flush=True)
+                                    continue
                             
-                            result = json.loads(result_text)
+                            # If still no result after retries, raise error
+                            if result is None:
+                                raise ValueError("MiniMax-M2 failed to return valid response after retries")
+                            
+                            # Now we have a valid result
                         else:
                             # DeepSeek API call with OpenAI SDK
                             response = client.chat.completions.create(
                                 model="deepseek-chat",
                                 messages=[
-                                    {"role": "system", "content": "You are a strict academic paper screening assistant. You apply exclusion criteria rigorously and conservatively. When uncertain, you exclude papers. You only output valid JSON format."},
+                                    {"role": "system", "content": "You are a paper screening assistant. Output ONLY valid JSON: {\"exclude\": true/false, \"reason\": \"text\"}. Be concise."},
                                     {"role": "user", "content": prompt}
                                 ],
                                 response_format={"type": "json_object"},
@@ -512,63 +521,7 @@ IMPORTANT: When in doubt, EXCLUDE the paper. Be conservative and strict."""
                             stats['ai_excluded'] += 1
                             print(f"   ❌ Excluded: {result.get('reason', 'Criteria matched')}", flush=True)
                         else:
-                            # Double-check: verify it's actually education-related
-                            verify_prompt = f"""Is this paper's PRIMARY focus on education/pedagogy/teaching/K-12/learning?
-
-Title: {title}
-Abstract: {abstract}
-
-Answer in JSON: {{"is_education": true/false, "confidence": "high/medium/low"}}
-
-If this is mainly about: robotics, engineering, medicine, sports, computer science, chemistry, physics, or other non-education fields → is_education=false
-Only return is_education=true if the paper is CLEARLY about teaching, learning, educational interventions, or K-12 education."""
-
-                            if ai_model == 'minimax':
-                                # MiniMax-M2 verification
-                                verify_response = client.messages.create(
-                                    model="MiniMax-M2",
-                                    max_tokens=500,
-                                    system="You verify if papers are truly education-focused. Be strict.",
-                                    messages=[
-                                        {
-                                            "role": "user",
-                                            "content": [
-                                                {
-                                                    "type": "text",
-                                                    "text": verify_prompt
-                                                }
-                                            ]
-                                        }
-                                    ]
-                                )
-                                
-                                verify_text = ""
-                                for block in verify_response.content:
-                                    if block.type == "text":
-                                        verify_text += block.text
-                                
-                                verify_result = json.loads(verify_text)
-                            else:
-                                # DeepSeek verification
-                                verify_response = client.chat.completions.create(
-                                    model="deepseek-chat",
-                                    messages=[
-                                        {"role": "system", "content": "You verify if papers are truly education-focused. Be strict."},
-                                        {"role": "user", "content": verify_prompt}
-                                    ],
-                                    response_format={"type": "json_object"},
-                                    temperature=0.0
-                                )
-                                
-                                verify_result = json.loads(verify_response.choices[0].message.content)
-                            
-                            if not verify_result.get('is_education', True):
-                                df.at[idx, '_EXCLUDED'] = True
-                                df.at[idx, '_EXCLUSION_REASON'] = f"AI: Not education-focused (confidence: {verify_result.get('confidence', 'medium')})"
-                                stats['ai_excluded'] += 1
-                                print(f"   ❌ Excluded on verification: Not education-focused", flush=True)
-                            else:
-                                print(f"   ✅ Kept (verified education-related)", flush=True)
+                            print(f"   ✅ Kept: {result.get('reason', 'Passed screening')}", flush=True)
                             
                     except Exception as e:
                         print(f"   ⚠️ AI Error for row {idx}: {e}", flush=True)
