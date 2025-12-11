@@ -7,5 +7,4 @@ rispy
 bibtexparser
 openai
 anthropic
-google-genai
 gunicorn
