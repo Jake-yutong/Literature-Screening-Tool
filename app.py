@@ -315,7 +315,7 @@ def df_to_bibtex(df, title_col='Title', abstract_col='Abstract', source_col='Sou
     return writer.write(bib_db)
 
 
-def screen_literature_task(task_id, df, title_abstract_keywords, journal_keywords, api_key=None, ai_criteria=None, remove_duplicates_flag=False):
+def screen_literature_task(task_id, df, title_abstract_keywords, journal_keywords, api_key=None, ai_criteria=None, remove_duplicates_flag=False, **kwargs):
     """Background task for screening literature."""
     try:
         tasks[task_id]['status'] = 'processing'
