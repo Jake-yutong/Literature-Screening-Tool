@@ -409,8 +409,8 @@ def screen_literature_task(task_id, df, title_abstract_keywords, journal_keyword
                     os.environ['ANTHROPIC_API_KEY'] = api_key
                     
                     client = anthropic.Anthropic()
-                    model_name = "MiniMax-M2"
-                    print(f"🤖 Using MiniMax-M2 model via Anthropic SDK", flush=True)
+                    model_name = "MiniMax-M2.1"
+                    print(f"🤖 Using MiniMax-M2.1 model via Anthropic SDK", flush=True)
                 else:
                     # Use DeepSeek with OpenAI SDK (default)
                     from openai import OpenAI
@@ -459,7 +459,7 @@ JSON format:
                             
                             for attempt in range(max_retries):
                                 response = client.messages.create(
-                                    model="MiniMax-M2",
+                                    model="MiniMax-M2.1",
                                     max_tokens=2000,  # Increased to prevent thinking truncation
                                     system="You are a paper screening assistant. Output ONLY valid JSON: {\"exclude\": true/false, \"reason\": \"text\"}. Be concise.",
                                     messages=[
@@ -498,7 +498,7 @@ JSON format:
                             
                             # If still no result after retries, raise error
                             if result is None:
-                                raise ValueError("MiniMax-M2 failed to return valid response after retries")
+                                raise ValueError("MiniMax-M2.1 failed to return valid response after retries")
                             
                             # Now we have a valid result
                         else:
