@@ -2,7 +2,7 @@ import requests
 import os
 
 url = 'http://127.0.0.1:5000/screen'
-files = {'file': open('test_data.csv', 'rb')}
+files = {'file': open('../data/test_data.csv', 'rb')}
 data = {
     'ta_keywords': 'surgical\npatient\ngame theory',
     'journal_keywords': 'medicine\nphysics'
