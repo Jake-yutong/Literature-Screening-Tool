@@ -1,103 +1,103 @@
-# 📚 Literature Screening Tool
+# Literature Screening Tool
 
 用于元分析和文献计量的自动化系统筛选工具 / Automated Literature Screening Tool for Meta-Analysis
 
-[![Version](https://img.shields.io/badge/version-1.2.1-blue.svg)](https://github.com/Jake-yutong/Literature-Screening-Tool)
+[![Version](https://img.shields.io/badge/version-1.2.3-blue.svg)](https://github.com/Jake-yutong/Literature-Screening-Tool)
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-## 🚀 快速开始 / Quick Start
+## Quick Start
 
 ```bash
-# 安装依赖 / Install dependencies
+# Install dependencies
 pip install -r requirements.txt
 
-# 启动应用 / Start application
+# Start application
 python app.py
 
-# 或使用启动脚本 / Or use launch script
+# Or use launch script
 python scripts/launch.py
 ```
 
-访问 http://127.0.0.1:5000
+Access the application at http://127.0.0.1:5000
 
-## ✨ 核心功能 / Features
+## Core Features
 
-- 📁 **多格式支持** - CSV, Excel, RIS, BibTeX, TXT
-- 🔍 **关键词筛选** - 标题/摘要/期刊黑名单
-- 🤖 **AI智能筛选** - 基于DeepSeek API的二次验证
-- 🔄 **智能去重** - DOI和标题双重匹配
-- 🌐 **双语界面** - 中文/English即时切换
-- 🎨 **专业UI** - 深色/浅色主题
+- **Multi-format Support**: CSV, Excel (.xlsx/.xls), RIS, BibTeX, TXT
+- **Keyword-based Filtering**: Title/Abstract/Journal blacklists
+- **AI-powered Screening**: Integrated DeepSeek and MiniMax-M2.1 models with dual verification
+- **Intelligent Deduplication**: DOI and title-based duplicate detection
+- **Bilingual Interface**: Instant switching between English and Chinese
+- **Professional UI**: Dark/Light theme with academic styling
 
-## 📁 项目结构 / Project Structure
+## Project Structure
 
 ```
 Literature-Screening-Tool/
-├── app.py                  # Flask主应用
-├── requirements.txt        # Python依赖
-├── Procfile               # 部署配置
-├── literature_screener.py # 核心筛选逻辑
-├── templates/             # HTML模板
+├── app.py                  # Flask main application
+├── requirements.txt        # Python dependencies
+├── Procfile               # Deployment configuration
+├── literature_screener.py # Core screening logic
+├── templates/             # HTML templates
 │   └── index.html
-├── static/                # 静态资源
-├── docs/                  # 📖 文档
-│   ├── README.md          # 详细文档
-│   ├── USER_GUIDE.md      # 用户指南
-│   ├── CHANGELOG.md       # 更新日志
-│   ├── AI_MODEL_GUIDE.md  # AI模型说明
+├── static/                # Static resources
+├── docs/                  # Documentation
+│   ├── README.md          # Detailed documentation
+│   ├── USER_GUIDE.md      # User guide
+│   ├── CHANGELOG.md       # Version history
+│   ├── AI_MODEL_GUIDE.md  # AI model guide
 │   └── ...
-├── scripts/               # 🛠️ 脚本
-│   ├── launch.py          # 启动脚本
-│   ├── start.sh           # Linux启动
-│   └── start.bat          # Windows启动
-├── tests/                 # 🧪 测试
+├── scripts/               # Scripts
+│   ├── launch.py          # Launch script
+│   ├── start.sh           # Linux startup
+│   └── start.bat          # Windows startup
+├── tests/                 # Tests
 │   └── verify_app.py
-└── data/                  # 📊 测试数据
+└── data/                  # Test data
     ├── test_data.csv
     ├── test_data.ris
     └── test_data.bib
 ```
 
-## 📖 详细文档 / Documentation
+## Documentation
 
-- [完整文档](docs/README.md) - 完整的使用说明
-- [用户指南](docs/USER_GUIDE.md) - 详细操作步骤
-- [更新日志](docs/CHANGELOG.md) - 版本历史
-- [AI模型指南](docs/AI_MODEL_GUIDE.md) - AI筛选说明
+- [Complete Documentation](docs/README.md) - Full usage guide
+- [User Guide](docs/USER_GUIDE.md) - Detailed operation steps
+- [Changelog](docs/CHANGELOG.md) - Version history
+- [AI Model Guide](docs/AI_MODEL_GUIDE.md) - AI screening documentation
 
-## 🔧 开发 / Development
+## Development
 
 ```bash
-# 安装开发依赖
+# Install development dependencies
 pip install -r requirements.txt
 
-# 运行测试
+# Run tests
 python tests/verify_app.py
 
-# 启动开发服务器
+# Start development server
 python app.py
 ```
 
-## 📝 版本 / Version
+## Version
 
-当前版本: **v1.2.1** (2025-12-11)
+Current Version: **v1.2.3** (2025-12-23)
 
-查看 [更新日志](docs/CHANGELOG.md) 了解详细更新内容
+See [Changelog](docs/CHANGELOG.md) for detailed update information.
 
-## 🤝 贡献 / Contributing
+## Contributing
 
-欢迎提交 Issue 和 Pull Request！
+Issues and Pull Requests are welcome.
 
-## 📄 许可证 / License
+## License
 
-MIT License - 详见 LICENSE 文件
+MIT License - See LICENSE file for details.
 
-## 👨‍💻 作者 / Author
+## Author
 
 LI Yutong (Jake) - [GitHub](https://github.com/Jake-yutong)
 
----
+## Citation
 
-⭐ 如果这个项目对您有帮助，请给它一个星标！
+If this tool is helpful for your research, please consider citing it in your publications.
 
