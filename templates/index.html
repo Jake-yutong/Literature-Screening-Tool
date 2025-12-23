@@ -1116,9 +1116,9 @@
 
                 } catch (error) {
                     console.error('Polling error:', error);
-                    // Don't stop polling on transient network errors, but maybe limit retries?
+                    // Don't stop polling on transient network errors
                 }
-            }, 1000); // Poll every 1 second
+            }, 2000); // Poll every 2 seconds (reduced from 1s to lower server load)
         }
 
         function showResults(stats, taskId) {
