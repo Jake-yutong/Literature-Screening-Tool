@@ -594,6 +594,7 @@ def screen_literature_task(task_id, df, title_abstract_keywords, journal_keyword
         if api_key and ai_criteria:
             try:
                 import json
+                import httpx
                 
                 tasks[task_id]['message'] = 'Connecting to AI...'
                 
@@ -609,14 +610,21 @@ def screen_literature_task(task_id, df, title_abstract_keywords, journal_keyword
                     os.environ['ANTHROPIC_BASE_URL'] = 'https://api.minimaxi.com/anthropic'
                     os.environ['ANTHROPIC_API_KEY'] = api_key
                     
-                    client = anthropic.Anthropic()
+                    client = anthropic.Anthropic(
+                        timeout=httpx.Timeout(60.0, connect=10.0)  # 60s total, 10s connect
+                    )
                     model_name = "MiniMax-M2.1"
                     print(f"🤖 Using MiniMax-M2.1 model via Anthropic SDK", flush=True)
                 else:
                     # Use DeepSeek with OpenAI SDK (default)
                     from openai import OpenAI
+                    import httpx
                     
-                    client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+                    client = OpenAI(
+                        api_key=api_key, 
+                        base_url="https://api.deepseek.com",
+                        timeout=httpx.Timeout(60.0, connect=10.0)  # 60s total, 10s connect
+                    )
                     model_name = "deepseek-chat"
                     print(f"🤖 Using DeepSeek model", flush=True)
                 
@@ -627,6 +635,11 @@ def screen_literature_task(task_id, df, title_abstract_keywords, journal_keyword
                 print(f"🤖 Starting AI Screening for {total_candidates} papers...", flush=True)
                 
                 for i, (idx, row) in enumerate(candidates.iterrows()):
+                    # Check if task was cancelled
+                    if tasks[task_id].get('cancelled', False):
+                        print(f"🛑 AI Screening cancelled at {i}/{total_candidates}", flush=True)
+                        break
+                    
                     # Update progress
                     progress_pct = int((i / total_candidates) * 100)
                     tasks[task_id]['progress'] = progress_pct
@@ -655,26 +668,36 @@ JSON format:
                     try:
                         if ai_model == 'minimax':
                             # MiniMax-M2 API call with retry mechanism
-                            max_retries = 2
+                            max_retries = 3
                             result = None
                             
                             for attempt in range(max_retries):
-                                response = client.messages.create(
-                                    model="MiniMax-M2.1",
-                                    max_tokens=2000,  # Increased to prevent thinking truncation
-                                    system="You are a paper screening assistant. Output ONLY valid JSON: {\"exclude\": true/false, \"reason\": \"text\"}. Be concise.",
-                                    messages=[
-                                        {
-                                            "role": "user",
-                                            "content": [
-                                                {
-                                                    "type": "text",
-                                                    "text": prompt
-                                                }
-                                            ]
-                                        }
-                                    ]
-                                )
+                                try:
+                                    response = client.messages.create(
+                                        model="MiniMax-M2.1",
+                                        max_tokens=2000,  # Increased to prevent thinking truncation
+                                        system="You are a paper screening assistant. Output ONLY valid JSON: {\"exclude\": true/false, \"reason\": \"text\"}. Be concise.",
+                                        messages=[
+                                            {
+                                                "role": "user",
+                                                "content": [
+                                                    {
+                                                        "type": "text",
+                                                        "text": prompt
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    )
+                                except (httpx.TimeoutException, httpx.ConnectTimeout) as te:
+                                    if attempt < max_retries - 1:
+                                        import time
+                                        wait_time = (attempt + 1) * 5
+                                        print(f"   ⚠️ Timeout (attempt {attempt+1}/{max_retries}), retrying in {wait_time}s...", flush=True)
+                                        time.sleep(wait_time)
+                                        continue
+                                    else:
+                                        raise te
                                 
                                 # Extract text from response blocks (skip 'thinking' blocks)
                                 result_text = ""
@@ -703,18 +726,42 @@ JSON format:
                             
                             # Now we have a valid result
                         else:
-                            # DeepSeek API call with OpenAI SDK
-                            response = client.chat.completions.create(
-                                model="deepseek-chat",
-                                messages=[
-                                    {"role": "system", "content": "You are a paper screening assistant. Output ONLY valid JSON: {\"exclude\": true/false, \"reason\": \"text\"}. Be concise."},
-                                    {"role": "user", "content": prompt}
-                                ],
-                                response_format={"type": "json_object"},
-                                temperature=0.0
-                            )
+                            # DeepSeek API call with OpenAI SDK + retry
+                            max_retries = 3
+                            result = None
                             
-                            result = json.loads(response.choices[0].message.content)
+                            for attempt in range(max_retries):
+                                try:
+                                    response = client.chat.completions.create(
+                                        model="deepseek-chat",
+                                        messages=[
+                                            {"role": "system", "content": "You are a paper screening assistant. Output ONLY valid JSON: {\"exclude\": true/false, \"reason\": \"text\"}. Be concise."},
+                                            {"role": "user", "content": prompt}
+                                        ],
+                                        response_format={"type": "json_object"},
+                                        temperature=0.0
+                                    )
+                                    
+                                    result = json.loads(response.choices[0].message.content)
+                                    break
+                                except (httpx.TimeoutException, httpx.ConnectTimeout) as te:
+                                    if attempt < max_retries - 1:
+                                        import time
+                                        wait_time = (attempt + 1) * 5  # 5s, 10s backoff
+                                        print(f"   ⚠️ Timeout (attempt {attempt+1}/{max_retries}), retrying in {wait_time}s...", flush=True)
+                                        time.sleep(wait_time)
+                                        continue
+                                    else:
+                                        raise te
+                                except json.JSONDecodeError as je:
+                                    if attempt < max_retries - 1:
+                                        print(f"   ⚠️ JSON parse error (attempt {attempt+1}/{max_retries}), retrying...", flush=True)
+                                        continue
+                                    else:
+                                        raise je
+                            
+                            if result is None:
+                                raise ValueError("DeepSeek failed to return valid response after retries")
                         
                         if result.get('exclude', False):
                             df.at[idx, '_EXCLUDED'] = True
@@ -1058,6 +1105,23 @@ def task_status(task_id):
         response['error'] = task.get('error', 'Unknown error')
         
     return jsonify(response)
+
+
+@app.route('/cancel/<task_id>', methods=['POST'])
+def cancel_task(task_id):
+    """Cancel a running task."""
+    task = tasks.get(task_id)
+    if not task:
+        return jsonify({'error': 'Task not found'}), 404
+    
+    if task['status'] == 'processing':
+        task['cancelled'] = True
+        task['status'] = 'error'
+        task['error'] = 'Task cancelled by user'
+        print(f"🛑 Task {task_id} cancelled by user", flush=True)
+        return jsonify({'status': 'cancelled'})
+    
+    return jsonify({'status': task['status']})
 
 
 @app.route('/download/<task_id>/<dataset>/<format>')

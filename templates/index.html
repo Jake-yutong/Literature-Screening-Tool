@@ -644,6 +644,9 @@
                 <div class="loading" id="loading">
                     <div class="spinner"></div>
                     <span data-i18n="status-processing">Processing...</span>
+                    <button class="btn" id="cancelBtn" style="margin-top: 0.8rem; background: #e74c3c; color: white; padding: 0.4rem 1.2rem; font-size: 0.85rem; border-radius: 6px; cursor: pointer;" onclick="cancelTask()">
+                        <span data-i18n="btn-cancel">Cancel</span>
+                    </button>
                 </div>
 
                 <div class="alert alert-error" id="errorAlert"></div>
@@ -796,6 +799,7 @@
                 'upload-secondary': 'Support multiple files',
                 'upload-formats': '.xlsx .xls .csv .ris .bib .rtf .txt',
                 'btn-start': 'Start Screening',
+                'btn-cancel': 'Cancel',
                 'status-processing': 'Processing...',
                 'settings-title': 'Screening Settings',
                 'label-ta-blacklist': 'Title/Abstract Exclusion Keywords',
@@ -839,6 +843,7 @@
                 'upload-secondary': '支持多文件',
                 'upload-formats': '.xlsx .xls .csv .ris .bib .rtf .txt',
                 'btn-start': '开始筛选',
+                'btn-cancel': '取消',
                 'status-processing': '正在处理...',
                 'settings-title': '筛选设置',
                 'label-ta-blacklist': '标题/摘要排除关键词',
@@ -949,6 +954,20 @@
         let selectedFiles = [];
         let currentTaskId = null;
         let pollInterval = null;
+
+        // Cancel task function
+        async function cancelTask() {
+            if (!currentTaskId) return;
+            try {
+                await fetch(`/cancel/${currentTaskId}`, { method: 'POST' });
+                if (pollInterval) clearInterval(pollInterval);
+                loading.classList.remove('show');
+                screenBtn.disabled = false;
+                showError(currentLang === 'zh' ? '任务已取消' : 'Task cancelled');
+            } catch (e) {
+                console.error('Cancel error:', e);
+            }
+        }
 
         // AI Model Select Icon Change
         function updateModelIcon() {
