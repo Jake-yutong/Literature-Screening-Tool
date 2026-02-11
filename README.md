@@ -23,7 +23,7 @@ Access the application at http://127.0.0.1:5000
 
 ## Core Features
 
-- **Multi-format Support**: CSV, Excel (.xlsx/.xls), RIS, BibTeX, TXT
+- **Multi-format Support**: CSV, Excel (.xlsx/.xls), RIS, BibTeX, RTF, TXT
 - **Keyword-based Filtering**: Title/Abstract/Journal blacklists
 - **AI-powered Screening**: Integrated DeepSeek and MiniMax-M2.1 models with dual verification
 - **Intelligent Deduplication**: DOI and title-based duplicate detection

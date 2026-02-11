@@ -20,6 +20,8 @@ import xlwt
 import bibtexparser
 from bibtexparser.bwriter import BibTexWriter
 from bibtexparser.bibdatabase import BibDatabase
+from striprtf.striprtf import rtf_to_text
+import re
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
@@ -313,6 +315,205 @@ def df_to_bibtex(df, title_col='Title', abstract_col='Abstract', source_col='Sou
     writer = BibTexWriter()
     writer.indent = '  '
     return writer.write(bib_db)
+
+
+def parse_rtf_file(file_content):
+    """
+    Parse RTF file content and convert to DataFrame.
+    
+    RTF files from reference managers (like EndNote, Zotero) typically contain
+    structured bibliographic data. This parser attempts to extract common fields
+    like Title, Abstract, Authors, Journal, Year, etc.
+    """
+    try:
+        # Decode RTF content
+        text_content = None
+        for encoding in ['utf-8', 'utf-8-sig', 'latin-1', 'cp1252', 'windows-1252']:
+            try:
+                rtf_content = file_content.decode(encoding)
+                # Convert RTF to plain text
+                text_content = rtf_to_text(rtf_content)
+                break
+            except:
+                continue
+        
+        if text_content is None:
+            raise ValueError("Could not decode RTF file with any supported encoding")
+        
+        records = []
+        
+        # Try EndNote-style format (e.g., "%T Title\n%A Author\n%J Journal\n")
+        # Split by double newlines to get individual entries
+        entries = re.split(r'\n\s*\n+', text_content)
+        
+        for entry_text in entries:
+            entry_text = entry_text.strip()
+            if not entry_text or not entry_text.startswith('%'):
+                continue
+                
+            record = {
+                'Title': '',
+                'Abstract': '',
+                'Source title': '',
+                'Authors': '',
+                'Year': '',
+                'DOI': '',
+                'Keywords': '',
+                'Type': '',
+                'URL': '',
+            }
+            
+            # Parse EndNote field codes
+            lines = entry_text.split('\n')
+            current_field = None
+            current_value = []
+            
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                
+                # Check if line starts with a field code
+                if line.startswith('%'):
+                    # Save previous field
+                    if current_field and current_value:
+                        value = ' '.join(current_value).strip()
+                        if current_field == 'title':
+                            record['Title'] = value
+                        elif current_field == 'abstract':
+                            record['Abstract'] = value
+                        elif current_field == 'journal':
+                            record['Source title'] = value
+                        elif current_field == 'author':
+                            if record['Authors']:
+                                record['Authors'] += '; ' + value
+                            else:
+                                record['Authors'] = value
+                        elif current_field == 'year':
+                            record['Year'] = value
+                        elif current_field == 'doi':
+                            record['DOI'] = value
+                        elif current_field == 'keywords':
+                            record['Keywords'] = value
+                        elif current_field == 'url':
+                            record['URL'] = value
+                        elif current_field == 'type':
+                            record['Type'] = value
+                    
+                    # Start new field
+                    current_value = []
+                    field_code = line[1:2].upper()
+                    field_content = line[2:].strip()
+                    
+                    # Map EndNote field codes
+                    field_map = {
+                        'T': 'title',
+                        'A': 'author',
+                        'J': 'journal',
+                        'D': 'year',
+                        'K': 'keywords',
+                        'X': 'abstract',
+                        'N': 'abstract',
+                        'U': 'url',
+                        'R': 'doi',
+                        '0': 'type',
+                    }
+                    
+                    current_field = field_map.get(field_code)
+                    if field_content:
+                        current_value.append(field_content)
+                else:
+                    # Continuation of previous field
+                    if current_field:
+                        current_value.append(line)
+            
+            # Save last field
+            if current_field and current_value:
+                value = ' '.join(current_value).strip()
+                if current_field == 'title':
+                    record['Title'] = value
+                elif current_field == 'abstract':
+                    record['Abstract'] = value
+                elif current_field == 'journal':
+                    record['Source title'] = value
+                elif current_field == 'author':
+                    if record['Authors']:
+                        record['Authors'] += '; ' + value
+                    else:
+                        record['Authors'] = value
+                elif current_field == 'year':
+                    record['Year'] = value
+                elif current_field == 'doi':
+                    record['DOI'] = value
+                elif current_field == 'keywords':
+                    record['Keywords'] = value
+                elif current_field == 'url':
+                    record['URL'] = value
+                elif current_field == 'type':
+                    record['Type'] = value
+            
+            # Only add if has at least a title
+            if record['Title']:
+                records.append(record)
+        
+        # If EndNote parsing didn't work, try alternative formats
+        if not records:
+            # Try to parse as simple paragraph-separated entries
+            # Split by double newlines or numbered entries
+            paragraphs = re.split(r'\n\s*\n+', text_content)
+            
+            for para in paragraphs:
+                para = para.strip()
+                if len(para) < 50:  # Skip very short paragraphs
+                    continue
+                
+                # Try to extract structured info from paragraph
+                lines = [l.strip() for l in para.split('\n') if l.strip()]
+                
+                if lines:
+                    # Heuristic: First line is often the title
+                    # Look for year patterns, journal names, etc.
+                    record = {
+                        'Title': lines[0] if lines else '',
+                        'Abstract': '',
+                        'Source title': '',
+                        'Authors': '',
+                        'Year': '',
+                        'DOI': '',
+                        'Keywords': '',
+                        'Type': '',
+                        'URL': '',
+                    }
+                    
+                    # Try to extract year (4 digits)
+                    year_match = re.search(r'\b(19|20)\d{2}\b', para)
+                    if year_match:
+                        record['Year'] = year_match.group(0)
+                    
+                    # Try to find DOI
+                    doi_match = re.search(r'10\.\d{4,}/[^\s]+', para)
+                    if doi_match:
+                        record['DOI'] = doi_match.group(0)
+                    
+                    # If we have remaining lines, treat as abstract or metadata
+                    if len(lines) > 1:
+                        # Join remaining lines as potential abstract
+                        remaining = ' '.join(lines[1:])
+                        if len(remaining) > 100:
+                            record['Abstract'] = remaining[:1000]  # Limit length
+                    
+                    records.append(record)
+        
+        if not records:
+            raise ValueError("Could not extract any bibliographic records from RTF file. The file may not be in a supported format.")
+        
+        df = pd.DataFrame(records)
+        print(f"   RTF parser: Found {len(records)} entries, created DataFrame with {len(df)} rows", flush=True)
+        return df
+        
+    except Exception as e:
+        print(f"   RTF parser error: {str(e)}", flush=True)
+        raise ValueError(f"Error parsing RTF file: {str(e)}")
 
 
 def screen_literature_task(task_id, df, title_abstract_keywords, journal_keywords, api_key=None, ai_criteria=None, remove_duplicates_flag=False, **kwargs):
@@ -631,6 +832,11 @@ def screen():
                     content = file.read()
                     df = parse_bibtex_file(content)
                     print(f"   Parsed BibTeX file: {filename}, {len(df)} records", flush=True)
+                elif filename.endswith('.rtf'):
+                    # RTF file support
+                    content = file.read()
+                    df = parse_rtf_file(content)
+                    print(f"   Parsed RTF file: {filename}, {len(df)} records", flush=True)
                 elif filename.endswith('.csv') or filename.endswith('.txt'):
                     # WoS exports often come as tab-delimited .txt or .csv
                     content = file.read()

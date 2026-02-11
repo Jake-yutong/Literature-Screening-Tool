@@ -8,3 +8,4 @@ bibtexparser
 openai
 anthropic
 gunicorn
+striprtf
