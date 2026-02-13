@@ -46,12 +46,29 @@ DEFAULT_JOURNAL_BLACKLIST = [
     "biological", "biochemistry", "sports", "sport", "athletic",
 ]
 
-# Column mappings for different data sources
+# Column mappings for different data sources (标准字段名: TI, AB, KW, PY, TY, LA, T2/J2, AU)
 COLUMN_MAPPINGS = {
+    # 标题 (Title)
     "title": ["Title", "title", "TI", "Article Title", "Document Title"],
+    # 摘要 (Abstract)
     "abstract": ["Abstract", "abstract", "AB", "Description"],
-    "source": ["Source Title", "source title", "SO", "Source", "Journal", 
-               "Publication Name", "Publication", "Journal Title"],
+    # 来源/期刊 (Source/Journal) - T2, J2
+    "source": ["Source Title", "source title", "SO", "Source", "Journal",
+               "Publication Name", "Publication", "Journal Title", "T2", "J2", "Journal Name"],
+    # 关键词 (Keywords) - KW
+    "keywords": ["Keywords", "keywords", "KW", "Keyword", "Key Words"],
+    # 年份 (Year) - PY
+    "year": ["Year", "year", "PY", "Publication Year", "Published", "DP"],
+    # 类型 (Type) - TY, M3
+    "type": ["Type", "type", "TY", "M3", "Document Type", "Content Type"],
+    # 语言 (Language) - LA
+    "language": ["Language", "language", "LA", "Languages"],
+    # 作者 (Author) - AU
+    "author": ["Authors", "authors", "AU", "Author", "Creator"],
+    # DOI
+    "doi": ["DOI", "doi", "Digital Object Identifier"],
+    # URL
+    "url": ["URL", "url", "Link"],
 }
 
 # Global storage for tasks
@@ -170,20 +187,49 @@ def parse_ris_file(file_content):
         if not entries:
             raise ValueError("No RIS entries found in file")
         
-        # Convert to DataFrame
+        # Convert to DataFrame (标准字段名: TI, AB, KW, PY, TY, LA, T2/J2, AU)
         records = []
         for entry in entries:
-            record = {
-                'Title': entry.get('title') or entry.get('primary_title', ''),
-                'Abstract': entry.get('abstract', ''),
-                'Source title': entry.get('journal_name') or entry.get('secondary_title', ''),
-                'Authors': '; '.join(entry.get('authors', [])) if entry.get('authors') else '',
-                'Year': str(entry.get('year', '')) if entry.get('year') else '',
-                'DOI': entry.get('doi', ''),
-                'Keywords': '; '.join(entry.get('keywords', [])) if entry.get('keywords') else '',
-                'Type': entry.get('type_of_reference', ''),
-                'URL': entry.get('url', ''),
+            # 解析类型字段 (RIS: type_of_reference -> TY)
+            ref_type = entry.get('type_of_reference', '')
+            type_mapping = {
+                'JOUR': 'Article',
+                'BOOK': 'Book',
+                'CHAP': 'Book Chapter',
+                'CONF': 'Conference',
+                'PAPR': 'Conference Paper',
+                'THES': 'Thesis',
+                'REPT': 'Report',
+                'REV': 'Review',
+                'ABST': 'Abstract',
+                'GEN': 'Generic',
             }
+            doc_type = type_mapping.get(ref_type, ref_type)
+
+            record = {
+                'TI': entry.get('title') or entry.get('primary_title', ''),
+                'AB': entry.get('abstract', ''),
+                'T2': entry.get('journal_name') or entry.get('secondary_title', ''),
+                'AU': '; '.join(entry.get('authors', [])) if entry.get('authors') else '',
+                'PY': str(entry.get('year', '')) if entry.get('year') else '',
+                'DO': entry.get('doi', ''),
+                'KW': '; '.join(entry.get('keywords', [])) if entry.get('keywords') else '',
+                'TY': doc_type,
+                'UR': entry.get('url', ''),
+                'LA': entry.get('language', ''),
+            }
+
+            # 兼容旧字段名（用于前端显示）
+            record['Title'] = record['TI']
+            record['Abstract'] = record['AB']
+            record['Source title'] = record['T2']
+            record['Authors'] = record['AU']
+            record['Year'] = record['PY']
+            record['DOI'] = record['DO']
+            record['Keywords'] = record['KW']
+            record['Type'] = record['TY']
+            record['URL'] = record['UR']
+
             records.append(record)
         
         df = pd.DataFrame(records)
@@ -239,20 +285,54 @@ def parse_bibtex_file(file_content):
         
         records = []
         for entry in bib_database.entries:
-            record = {
-                'Title': entry.get('title', '').replace('{', '').replace('}', ''),
-                'Abstract': entry.get('abstract', ''),
-                'Source title': entry.get('journal', '') or entry.get('booktitle', ''),
-                'Authors': entry.get('author', '').replace(' and ', '; '),
-                'Year': entry.get('year', ''),
-                'DOI': entry.get('doi', ''),
-                'Keywords': entry.get('keywords', ''),
-                'Type': entry.get('ENTRYTYPE', ''),
-                'URL': entry.get('url', ''),
-                'Publisher': entry.get('publisher', ''),
-                'Volume': entry.get('volume', ''),
-                'Pages': entry.get('pages', ''),
+            # 解析类型字段 (BibTeX: entry type -> TY)
+            entry_type = entry.get('ENTRYTYPE', '')
+            type_mapping = {
+                'article': 'Article',
+                'book': 'Book',
+                'inproceedings': 'Conference',
+                'conference': 'Conference',
+                'incollection': 'Book Chapter',
+                'inbook': 'Book Chapter',
+                'phdthesis': 'Thesis',
+                'mastersthesis': 'Thesis',
+                'techreport': 'Report',
+                'misc': 'Generic',
             }
+            doc_type = type_mapping.get(entry_type, entry_type)
+
+            # 提取作者列表
+            authors_str = entry.get('author', '').replace(' and ', '; ')
+            # 提取年份
+            year_val = entry.get('year', '')
+
+            record = {
+                'TI': entry.get('title', '').replace('{', '').replace('}', ''),
+                'AB': entry.get('abstract', ''),
+                'T2': entry.get('journal', '') or entry.get('booktitle', ''),
+                'AU': authors_str,
+                'PY': year_val,
+                'DO': entry.get('doi', ''),
+                'KW': entry.get('keywords', ''),
+                'TY': doc_type,
+                'UR': entry.get('url', ''),
+                'LA': entry.get('language', ''),
+            }
+
+            # 兼容旧字段名（用于前端显示）
+            record['Title'] = record['TI']
+            record['Abstract'] = record['AB']
+            record['Source title'] = record['T2']
+            record['Authors'] = record['AU']
+            record['Year'] = record['PY']
+            record['DOI'] = record['DO']
+            record['Keywords'] = record['KW']
+            record['Type'] = record['TY']
+            record['URL'] = record['UR']
+            record['Publisher'] = entry.get('publisher', '')
+            record['Volume'] = entry.get('volume', '')
+            record['Pages'] = entry.get('pages', '')
+
             records.append(record)
         
         return pd.DataFrame(records)
@@ -352,16 +432,28 @@ def parse_rtf_file(file_content):
                 continue
                 
             record = {
-                'Title': '',
-                'Abstract': '',
-                'Source title': '',
-                'Authors': '',
-                'Year': '',
-                'DOI': '',
-                'Keywords': '',
-                'Type': '',
-                'URL': '',
+                'TI': '',        # 标题 (Title)
+                'AB': '',        # 摘要 (Abstract)
+                'T2': '',        # 期刊 (Journal/Source)
+                'AU': '',        # 作者 (Author)
+                'PY': '',        # 年份 (Year)
+                'DO': '',        # DOI
+                'KW': '',        # 关键词 (Keywords)
+                'TY': '',        # 类型 (Type)
+                'UR': '',        # URL
+                'LA': '',        # 语言 (Language)
             }
+
+            # 兼容旧字段名（用于前端显示）
+            record['Title'] = ''
+            record['Abstract'] = ''
+            record['Source title'] = ''
+            record['Authors'] = ''
+            record['Year'] = ''
+            record['DOI'] = ''
+            record['Keywords'] = ''
+            record['Type'] = ''
+            record['URL'] = ''
             
             # Parse EndNote field codes
             lines = entry_text.split('\n')
@@ -379,44 +471,59 @@ def parse_rtf_file(file_content):
                     if current_field and current_value:
                         value = ' '.join(current_value).strip()
                         if current_field == 'title':
+                            record['TI'] = value
                             record['Title'] = value
                         elif current_field == 'abstract':
+                            record['AB'] = value
                             record['Abstract'] = value
                         elif current_field == 'journal':
+                            record['T2'] = value
                             record['Source title'] = value
                         elif current_field == 'author':
+                            if record['AU']:
+                                record['AU'] += '; ' + value
+                            else:
+                                record['AU'] = value
                             if record['Authors']:
                                 record['Authors'] += '; ' + value
                             else:
                                 record['Authors'] = value
                         elif current_field == 'year':
+                            record['PY'] = value
                             record['Year'] = value
                         elif current_field == 'doi':
+                            record['DO'] = value
                             record['DOI'] = value
                         elif current_field == 'keywords':
+                            record['KW'] = value
                             record['Keywords'] = value
                         elif current_field == 'url':
+                            record['UR'] = value
                             record['URL'] = value
                         elif current_field == 'type':
+                            record['TY'] = value
                             record['Type'] = value
+                        elif current_field == 'language':
+                            record['LA'] = value
                     
                     # Start new field
                     current_value = []
                     field_code = line[1:2].upper()
                     field_content = line[2:].strip()
                     
-                    # Map EndNote field codes
+                    # Map EndNote field codes (标准字段名: TI, AB, KW, PY, TY, LA, T2/J2, AU)
                     field_map = {
-                        'T': 'title',
-                        'A': 'author',
-                        'J': 'journal',
-                        'D': 'year',
-                        'K': 'keywords',
-                        'X': 'abstract',
-                        'N': 'abstract',
-                        'U': 'url',
-                        'R': 'doi',
-                        '0': 'type',
+                        'T': 'title',        # TI - Title
+                        'A': 'author',       # AU - Author
+                        'J': 'journal',      # T2/J2 - Journal
+                        'D': 'year',         # PY - Year
+                        'K': 'keywords',     # KW - Keywords
+                        'X': 'abstract',     # AB - Abstract
+                        'N': 'abstract',     # AB - Abstract
+                        'U': 'url',          # UR - URL
+                        'R': 'doi',          # DO - DOI
+                        '0': 'type',         # TY - Type
+                        'L': 'language',     # LA - Language
                     }
                     
                     current_field = field_map.get(field_code)
@@ -431,26 +538,40 @@ def parse_rtf_file(file_content):
             if current_field and current_value:
                 value = ' '.join(current_value).strip()
                 if current_field == 'title':
+                    record['TI'] = value
                     record['Title'] = value
                 elif current_field == 'abstract':
+                    record['AB'] = value
                     record['Abstract'] = value
                 elif current_field == 'journal':
+                    record['T2'] = value
                     record['Source title'] = value
                 elif current_field == 'author':
+                    if record['AU']:
+                        record['AU'] += '; ' + value
+                    else:
+                        record['AU'] = value
                     if record['Authors']:
                         record['Authors'] += '; ' + value
                     else:
                         record['Authors'] = value
                 elif current_field == 'year':
+                    record['PY'] = value
                     record['Year'] = value
                 elif current_field == 'doi':
+                    record['DO'] = value
                     record['DOI'] = value
                 elif current_field == 'keywords':
+                    record['KW'] = value
                     record['Keywords'] = value
                 elif current_field == 'url':
+                    record['UR'] = value
                     record['URL'] = value
                 elif current_field == 'type':
+                    record['TY'] = value
                     record['Type'] = value
+                elif current_field == 'language':
+                    record['LA'] = value
             
             # Only add if has at least a title
             if record['Title']:
@@ -844,22 +965,25 @@ def screen():
         # Read and merge files
         dfs = []
         
-        # WoS to Scopus Mapping
+        # WoS to Standard Field Mapping (标准字段名: TI, AB, KW, PY, TY, LA, T2/J2, AU)
         WOS_MAPPING = {
-            'TI': 'Title',
-            'AB': 'Abstract',
-            'AU': 'Authors',
-            'SO': 'Source title',
-            'PY': 'Year',
-            'DE': 'Author Keywords',
-            'ID': 'Keywords Plus',
-            'DI': 'DOI',
-            'DT': 'Document Type',
+            'TI': 'TI',           # Title -> TI
+            'AB': 'AB',           # Abstract -> AB
+            'AU': 'AU',           # Authors -> AU
+            'SO': 'T2',           # Source title -> T2
+            'PY': 'PY',           # Year -> PY
+            'DE': 'KW',           # Author Keywords -> KW
+            'ID': 'KW',           # Keywords Plus -> KW (also merge with DE)
+            'DI': 'DO',           # DOI -> DO
+            'DT': 'TY',           # Document Type -> TY
             'CR': 'References',
             'C1': 'Affiliations',
             'TC': 'Cited by',
             'SN': 'ISSN',
-            'EI': 'EISSN'
+            'EI': 'EISSN',
+            'LA': 'LA',           # Language -> LA
+            'J2': 'T2',           # Journal Name -> T2
+            'T2': 'T2',           # Journal Name -> T2
         }
 
         for file in files:
@@ -1035,8 +1159,27 @@ def screen():
                 if 'TI' in df.columns and 'SO' in df.columns:
                     print(f"   Detected WoS format for {filename}, standardizing...", flush=True)
                     df = df.rename(columns=WOS_MAPPING)
-                
-                # Ensure essential columns exist
+
+                # Add standard field names if not exist (标准字段名: TI, AB, KW, PY, TY, LA, T2/J2, AU)
+                # Map standard field names to legacy names for frontend compatibility
+                standard_to_legacy = {
+                    'TI': 'Title',
+                    'AB': 'Abstract',
+                    'AU': 'Authors',
+                    'T2': 'Source title',
+                    'PY': 'Year',
+                    'KW': 'Keywords',
+                    'DO': 'DOI',
+                    'TY': 'Type',
+                    'UR': 'URL',
+                    'LA': 'Language',
+                }
+
+                for std_col, legacy_col in standard_to_legacy.items():
+                    if std_col in df.columns and legacy_col not in df.columns:
+                        df[legacy_col] = df[std_col]
+
+                # Ensure essential columns exist (for compatibility)
                 required_cols = ['Title', 'Abstract', 'Source title']
                 for col in required_cols:
                     if col not in df.columns:
@@ -1049,6 +1192,24 @@ def screen():
                                 break
                         if not found:
                             df[col] = '' # Create empty if missing
+
+                # Also ensure standard columns exist if legacy columns present
+                legacy_to_standard = {
+                    'Title': 'TI',
+                    'Abstract': 'AB',
+                    'Authors': 'AU',
+                    'Source title': 'T2',
+                    'Year': 'PY',
+                    'Keywords': 'KW',
+                    'DOI': 'DO',
+                    'Type': 'TY',
+                    'URL': 'UR',
+                    'Language': 'LA',
+                }
+
+                for legacy_col, std_col in legacy_to_standard.items():
+                    if legacy_col in df.columns and std_col not in df.columns:
+                        df[std_col] = df[legacy_col]
                 
                 dfs.append(df)
             except Exception as e:
