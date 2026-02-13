@@ -94,6 +94,39 @@ def contains_blacklisted_keyword(text, blacklist):
     return False, ""
 
 
+def update_time_estimate(task_id, total_items, stage='Keyword'):
+    """更新处理速度和剩余时间估算"""
+    import time as time_module
+    start_time = tasks[task_id].get('start_time')
+    if not start_time:
+        return
+
+    current_time = time_module.time()
+    elapsed = current_time - start_time
+    processed = tasks[task_id].get('screening_log_count', 0)
+
+    if processed > 0:
+        # 计算处理速度（条/秒）
+        speed = processed / elapsed
+        tasks[task_id]['speed'] = speed
+
+        # 估算剩余时间
+        remaining = total_items - processed
+        if remaining > 0 and speed > 0:
+            remaining_seconds = remaining / speed
+            # 格式化剩余时间
+            if remaining_seconds < 60:
+                remaining_str = f"{int(remaining_seconds)}秒"
+            elif remaining_seconds < 3600:
+                remaining_str = f"{int(remaining_seconds/60)}分钟"
+            else:
+                hours = int(remaining_seconds / 3600)
+                mins = int((remaining_seconds % 3600) / 60)
+                remaining_str = f"{hours}小时{mins}分钟"
+
+            tasks[task_id]['message'] = f"{stage}筛选: 已处理 {processed}/{total_items}, 剩余约 {remaining_str}"
+
+
 def remove_duplicates(df, title_col='Title', method='doi_title'):
     """
     Remove duplicate records from DataFrame.
@@ -640,10 +673,14 @@ def parse_rtf_file(file_content):
 def screen_literature_task(task_id, df, title_abstract_keywords, journal_keywords, api_key=None, ai_criteria=None, remove_duplicates_flag=False, **kwargs):
     """Background task for screening literature."""
     try:
+        import time as time_module
         tasks[task_id]['status'] = 'processing'
         tasks[task_id]['progress'] = 0
         tasks[task_id]['message'] = 'Initializing...'
-        
+        tasks[task_id]['start_time'] = time_module.time()  # 记录开始时间
+        tasks[task_id]['processed_count'] = 0  # 已处理数量
+        tasks[task_id]['speed'] = 0  # 处理速度（条/秒）
+
         original_total = len(df)
         
         # Find relevant columns
@@ -679,26 +716,54 @@ def screen_literature_task(task_id, df, title_abstract_keywords, journal_keyword
         }
         
         tasks[task_id]['message'] = 'Keyword Screening...'
-        
+
+        # Helper function to add log entry
+        def add_screening_log(idx, row, title_col, status, reason=''):
+            """Add a log entry for screening progress."""
+            # Get title for display (try multiple column names)
+            title = ''
+            if title_col and title_col in row:
+                title = str(row.get(title_col, ''))[:100]
+            elif 'TI' in row:
+                title = str(row.get('TI', ''))[:100]
+            elif 'Title' in row:
+                title = str(row.get('Title', ''))[:100]
+
+            log_entry = {
+                'idx': int(idx),
+                'title': title,
+                'status': status,  # 'kept' or 'excluded'
+                'reason': reason,
+                'timestamp': None  # 可以后续添加时间戳
+            }
+
+            # Limit log size to last 500 entries
+            log = tasks[task_id].get('screening_log', [])
+            log.append(log_entry)
+            if len(log) > 500:
+                log = log[-500:]
+            tasks[task_id]['screening_log'] = log
+            tasks[task_id]['screening_log_count'] = tasks[task_id].get('screening_log_count', 0) + 1
+
         # --- Step 1: Keyword Screening ---
         for idx, row in df.iterrows():
             exclusion_reasons = []
-            
+
             # Check Title
             if title_col:
                 is_excluded, keyword = contains_blacklisted_keyword(row[title_col], ta_blacklist)
                 if is_excluded:
                     exclusion_reasons.append(f"Title: '{keyword}'")
-            
+
             # Check Abstract
             if abstract_col:
                 is_excluded, keyword = contains_blacklisted_keyword(row[abstract_col], ta_blacklist)
                 if is_excluded:
                     exclusion_reasons.append(f"Abstract: '{keyword}'")
-            
+
             if exclusion_reasons:
                 stats['title_abstract_excluded'] += 1
-            
+
             # Check Source/Journal
             if source_col:
                 is_excluded, keyword = contains_blacklisted_keyword(row[source_col], j_blacklist)
@@ -706,10 +771,18 @@ def screen_literature_task(task_id, df, title_abstract_keywords, journal_keyword
                     exclusion_reasons.append(f"Journal: '{keyword}'")
                     if len(exclusion_reasons) == 1:
                         stats['journal_excluded'] += 1
-            
+
             if exclusion_reasons:
                 df.at[idx, '_EXCLUDED'] = True
                 df.at[idx, '_EXCLUSION_REASON'] = ' | '.join(exclusion_reasons)
+                # 添加排除日志
+                add_screening_log(idx, row, title_col, 'excluded', ' | '.join(exclusion_reasons))
+            else:
+                # 添加保留日志
+                add_screening_log(idx, row, title_col, 'kept', 'Passed keyword screening')
+
+        # 更新关键词筛选后的处理速度和估算时间
+        update_time_estimate(task_id, len(df), 'Keyword')
 
         # --- Step 2: AI Screening (Optional) ---
         if api_key and ai_criteria:
@@ -764,7 +837,10 @@ def screen_literature_task(task_id, df, title_abstract_keywords, journal_keyword
                     # Update progress
                     progress_pct = int((i / total_candidates) * 100)
                     tasks[task_id]['progress'] = progress_pct
-                    tasks[task_id]['message'] = f"AI Screening: {i+1}/{total_candidates}"
+
+                    # 更新处理速度和剩余时间
+                    tasks[task_id]['processed_count'] = i + 1
+                    update_time_estimate(task_id, total_candidates, 'AI')
                     
                     title = row[title_col] if title_col else "N/A"
                     abstract = row[abstract_col] if abstract_col else "N/A"
@@ -889,8 +965,12 @@ JSON format:
                             df.at[idx, '_EXCLUSION_REASON'] = f"AI: {result.get('reason', 'Criteria matched')}"
                             stats['ai_excluded'] += 1
                             print(f"   ❌ Excluded: {result.get('reason', 'Criteria matched')}", flush=True)
+                            # 添加 AI 排除日志
+                            add_screening_log(idx, row, title_col, 'excluded', f"AI: {result.get('reason', 'Criteria matched')}")
                         else:
                             print(f"   ✅ Kept: {result.get('reason', 'Passed screening')}", flush=True)
+                            # 添加 AI 保留日志
+                            add_screening_log(idx, row, title_col, 'kept', f"AI: {result.get('reason', 'Passed')}")
                             
                     except Exception as e:
                         print(f"   ⚠️ AI Error for row {idx}: {e}", flush=True)
@@ -1231,7 +1311,9 @@ def screen():
             'status': 'queued',
             'progress': 0,
             'message': 'Queued...',
-            'result': None
+            'result': None,
+            'screening_log': [],  # 记录每条文献的处理情况
+            'screening_log_count': 0  # 已处理数量，用于限制日志长度
         }
         
         # Start background thread
@@ -1253,13 +1335,18 @@ def task_status(task_id):
     task = tasks.get(task_id)
     if not task:
         return jsonify({'error': 'Task not found'}), 404
-    
+
     response = {
         'status': task['status'],
         'progress': task.get('progress', 0),
         'message': task.get('message', ''),
     }
-    
+
+    # 添加筛选日志（只返回最近100条）
+    if 'screening_log' in task:
+        response['screening_log'] = task['screening_log'][-100:]
+        response['screening_log_count'] = task.get('screening_log_count', 0)
+
     if task['status'] == 'completed':
         response['stats'] = task['result']['stats']
     elif task['status'] == 'error':
