@@ -717,9 +717,15 @@ def screen_literature_task(task_id, df, title_abstract_keywords, journal_keyword
         
         tasks[task_id]['message'] = 'Keyword Screening...'
 
+        # 记录关键词筛选开始时间
+        keyword_start_time = time_module.time()
+        keyword_processed = 0
+        total_for_keyword = len(df)
+
         # Helper function to add log entry
         def add_screening_log(idx, row, title_col, status, reason=''):
             """Add a log entry for screening progress."""
+            nonlocal keyword_processed
             # Get title for display (try multiple column names)
             title = ''
             if title_col and title_col in row:
@@ -744,6 +750,32 @@ def screen_literature_task(task_id, df, title_abstract_keywords, journal_keyword
                 log = log[-500:]
             tasks[task_id]['screening_log'] = log
             tasks[task_id]['screening_log_count'] = tasks[task_id].get('screening_log_count', 0) + 1
+            keyword_processed += 1
+
+            # 更新关键词筛选进度和预估时间
+            progress_pct = int((keyword_processed / total_for_keyword) * 100)
+            tasks[task_id]['progress'] = progress_pct
+
+            # 计算预估剩余时间（精确到秒）
+            elapsed = time_module.time() - keyword_start_time
+            if keyword_processed > 0 and elapsed > 0:
+                speed = keyword_processed / elapsed
+                tasks[task_id]['speed'] = speed
+                remaining = total_for_keyword - keyword_processed
+                if remaining > 0 and speed > 0:
+                    remaining_seconds = remaining / speed
+                    if remaining_seconds < 60:
+                        remaining_str = f"{int(remaining_seconds)}秒"
+                    elif remaining_seconds < 3600:
+                        mins = int(remaining_seconds / 60)
+                        secs = int(remaining_seconds % 60)
+                        remaining_str = f"{mins}分{secs}秒"
+                    else:
+                        hours = int(remaining_seconds / 3600)
+                        mins = int((remaining_seconds % 3600) / 60)
+                        secs = int(remaining_seconds % 60)
+                        remaining_str = f"{hours}小时{mins}分{secs}秒"
+                    tasks[task_id]['message'] = f"关键词筛选: {keyword_processed}/{total_for_keyword}, 剩余约 {remaining_str}"
 
         # --- Step 1: Keyword Screening ---
         for idx, row in df.iterrows():
@@ -781,8 +813,9 @@ def screen_literature_task(task_id, df, title_abstract_keywords, journal_keyword
                 # 添加保留日志
                 add_screening_log(idx, row, title_col, 'kept', 'Passed keyword screening')
 
-        # 更新关键词筛选后的处理速度和估算时间
-        update_time_estimate(task_id, len(df), 'Keyword')
+        # 关键词筛选完成，重置AI筛选的计数
+        tasks[task_id]['processed_count'] = 0
+        tasks[task_id]['screening_log_count'] = 0  # 重置日志计数，使前端显示从0开始
 
         # --- Step 2: AI Screening (Optional) ---
         if api_key and ai_criteria:
@@ -827,7 +860,11 @@ def screen_literature_task(task_id, df, title_abstract_keywords, journal_keyword
                 total_candidates = len(candidates)
                 
                 print(f"🤖 Starting AI Screening for {total_candidates} papers...", flush=True)
-                
+
+                # AI 筛选开始时间
+                ai_start_time = time_module.time()
+                ai_processed = 0
+
                 for i, (idx, row) in enumerate(candidates.iterrows()):
                     # Check if task was cancelled
                     if tasks[task_id].get('cancelled', False):
@@ -839,8 +876,29 @@ def screen_literature_task(task_id, df, title_abstract_keywords, journal_keyword
                     tasks[task_id]['progress'] = progress_pct
 
                     # 更新处理速度和剩余时间
-                    tasks[task_id]['processed_count'] = i + 1
-                    update_time_estimate(task_id, total_candidates, 'AI')
+                    ai_processed = i + 1
+                    tasks[task_id]['processed_count'] = ai_processed
+
+                    # 计算 AI 筛选的预估剩余时间
+                    elapsed = time_module.time() - ai_start_time
+                    if ai_processed > 0 and elapsed > 0:
+                        speed = ai_processed / elapsed
+                        tasks[task_id]['speed'] = speed
+                        remaining = total_candidates - ai_processed
+                        if remaining > 0 and speed > 0:
+                            remaining_seconds = remaining / speed
+                            if remaining_seconds < 60:
+                                remaining_str = f"{int(remaining_seconds)}秒"
+                            elif remaining_seconds < 3600:
+                                mins = int(remaining_seconds / 60)
+                                secs = int(remaining_seconds % 60)
+                                remaining_str = f"{mins}分{secs}秒"
+                            else:
+                                hours = int(remaining_seconds / 3600)
+                                mins = int((remaining_seconds % 3600) / 60)
+                                secs = int(remaining_seconds % 60)
+                                remaining_str = f"{hours}小时{mins}分{secs}秒"
+                            tasks[task_id]['message'] = f"AI筛选: {ai_processed}/{total_candidates}, 剩余约 {remaining_str}"
                     
                     title = row[title_col] if title_col else "N/A"
                     abstract = row[abstract_col] if abstract_col else "N/A"
